@@ -65,13 +65,13 @@ func (this *UserMustAuth) BeforeAction(actionPtr actions.ActionWrapper, paramNam
 		},**/
 	}
 
-	if user.Granted(configs.AdminGrantProxy) {
-		modules = append(modules, map[string]interface{}{
-			"code":     "proxy",
-			"menuName": "代理",
-			"icon":     "paper plane outline",
-		})
-	}
+	//if user.Granted(configs.AdminGrantProxy) {
+	//	modules = append(modules, map[string]interface{}{
+	//		"code":     "proxy",
+	//		"menuName": "代理",
+	//		"icon":     "paper plane outline",
+	//	})
+	//}
 
 	if teaconst.PlusEnabled {
 		if user.Granted(configs.AdminGrantApi) {
@@ -95,18 +95,27 @@ func (this *UserMustAuth) BeforeAction(actionPtr actions.ActionWrapper, paramNam
 	if user.Granted(configs.AdminGrantAgent) {
 		modules = append(modules, map[string]interface{}{
 			"code":     "agents",
-			"menuName": "监控",
+			"menuName": "监控服务",
 			"icon":     "server",
 		})
 	}
 
-	if user.Granted(configs.AdminGrantPlugin) {
+	// 设置
+	if user.Granted(configs.AdminGrantAgent) {
 		modules = append(modules, map[string]interface{}{
-			"code":     "plugins",
-			"menuName": "插件",
-			"icon":     "puzzle piece",
+			"code":     "settings",
+			"menuName": "平台设置",
+			"icon":     "setting",
 		})
 	}
+
+	//if user.Granted(configs.AdminGrantPlugin) {
+	//	modules = append(modules, map[string]interface{}{
+	//		"code":     "plugins",
+	//		"menuName": "插件",
+	//		"icon":     "puzzle piece",
+	//	})
+	//}
 
 	if teaconst.PlusEnabled {
 		if user.Granted(configs.AdminGrantTeam) {
@@ -120,17 +129,17 @@ func (this *UserMustAuth) BeforeAction(actionPtr actions.ActionWrapper, paramNam
 
 	if user.Granted(configs.AdminGrantLog) {
 		modules = append(modules, map[string]interface{}{
-			"code":     "log.runtime",
-			"menuName": "系统日志",
+			"code":     "log.audit",
+			"menuName": "登录日志",
 			"icon":     "history",
 		})
 	}
 
 	if teaconst.PlusEnabled {
-		action.Data["teaTitle"] = teaconst.TeaProductName + "+管理平台"
+		action.Data["teaTitle"] = teaconst.TeaProductName + "+平台"
 		action.Data["teaName"] = teaconst.TeaProductName + "+"
 	} else {
-		action.Data["teaTitle"] = teaconst.TeaProductName + "管理平台"
+		action.Data["teaTitle"] = teaconst.TeaProductName + "平台"
 		action.Data["teaName"] = teaconst.TeaProductName
 	}
 

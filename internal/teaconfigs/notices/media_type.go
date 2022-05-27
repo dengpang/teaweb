@@ -49,7 +49,7 @@ func AllNoticeMediaTypes() []maps.Map {
 			"code":         NoticeMediaTypeDingTalk,
 			"supportsHTML": false,
 			"instance":     new(NoticeDingTalkMedia),
-			"description":  "通过钉钉群机器人发送通知消息，<a href=\"http://teaos.cn/doc/notices/DingTalk.md\" target=\"_blank\">相关文档&raquo;</a>",
+			"description":  "通过钉钉群机器人发送通知消息",
 			"user":         "要At（@）的群成员的手机号，多个手机号用英文逗号隔开，也可以为空",
 		},
 		{
@@ -57,7 +57,7 @@ func AllNoticeMediaTypes() []maps.Map {
 			"code":         NoticeMediaTypeQyWeixin,
 			"supportsHTML": false,
 			"instance":     new(NoticeQyWeixinMedia),
-			"description":  "通过企业微信应用发送通知消息，<a href=\"http://teaos.cn/doc/notices/QyWeixin.md\" target=\"_blank\">相关文档&raquo;</a>",
+			"description":  "通过企业微信应用发送通知消息", //，<a href="http://teaos.cn/doc/notices/QyWeixin.md" target="_blank">相关文档&raquo;</a>
 			"user":         "接收消息的成员的用户账号，多个成员用竖线（|）分隔，如果所有成员使用@all。留空表示所有成员。<a href=\"http://teaos.cn/doc/notices/QyWeixin.md#%E7%94%A8%E6%88%B7%E8%B4%A6%E5%8F%B7\" target=\"_blank\">如何查看成员的用户账号？</a>",
 		},
 		{
@@ -73,7 +73,7 @@ func AllNoticeMediaTypes() []maps.Map {
 			"code":         NoticeMediaTypeAliyunSms,
 			"supportsHTML": false,
 			"instance":     new(NoticeAliyunSmsMedia),
-			"description":  "通过<a href=\"https://www.aliyun.com/product/sms?spm=5176.11533447.1097531.2.12055cfa6UnIix\" target=\"_blank\">阿里云短信服务</a>发送短信，<a href=\"http://teaos.cn/doc/notices/AliyunSms.md\" target=\"_blank\">相关文档&raquo;</a>",
+			"description":  "通过<a href=\"https://www.aliyun.com/product/sms?spm=5176.11533447.1097531.2.12055cfa6UnIix\" target=\"_blank\">阿里云短信服务</a>发送短信", //，<a href="http://teaos.cn/doc/notices/AliyunSms.md" target="_blank">相关文档&raquo;</a>
 			"user":         "接收消息的手机号",
 		},
 		{
@@ -84,14 +84,14 @@ func AllNoticeMediaTypes() []maps.Map {
 			"description":  "通过机器人向群或者某个用户发送消息，需要确保所在网络能够访问Telegram API服务",
 			"user":         "群或用户的Chat ID，通常是一个数字，可以通过和 @get_id_bot 建立对话并发送任意消息获得",
 		},
-		{
-			"name":         "TeaOS云短信",
-			"code":         NoticeMediaTypeTeaSms,
-			"supportsHTML": false,
-			"instance":     new(NoticeTeaSmsMedia),
-			"description":  "通过<a href=\"http://cloud.teaos.cn\" target=\"_blank\">TeaOS官方</a>提供的云短信接口发送短信，<a href=\"http://teaos.cn/doc/notices/TeaSms.md\" target=\"_blank\">相关文档&raquo;</a>",
-			"user":         "接收消息的手机号",
-		},
+		//{
+		//	"name":         "TeaOS云短信",
+		//	"code":         NoticeMediaTypeTeaSms,
+		//	"supportsHTML": false,
+		//	"instance":     new(NoticeTeaSmsMedia),
+		//	"description":  "通过<a href=\"http://cloud.teaos.cn\" target=\"_blank\">TeaOS官方</a>提供的云短信接口发送短信，<a href=\"http://teaos.cn/doc/notices/TeaSms.md\" target=\"_blank\">相关文档&raquo;</a>",
+		//	"user":         "接收消息的手机号",
+		//},
 	}
 }
 

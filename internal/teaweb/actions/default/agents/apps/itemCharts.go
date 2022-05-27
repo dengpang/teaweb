@@ -122,7 +122,7 @@ widget.run = function () {
 		}
 		engine.AddOutput(err.Error())
 	}
-
+	//fmt.Println(engine.Charts())
 	this.Data["charts"] = teautils.ConvertJSONObjectSafely(engine.Charts())
 	this.Data["output"] = engine.Output()
 	this.Success()

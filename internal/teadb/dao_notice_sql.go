@@ -191,6 +191,38 @@ func (this *SQLNoticeDAO) ListAgentNotices(agentId string, isRead bool, offset i
 	return result, err
 }
 
+// 列出某个Agent相关的消息 按更多条件筛选
+func (this *SQLNoticeDAO) ListAgentNoticesByItem(agentId string, isRead bool, offset int, size int, item Item) ([]*notices.Notice, error) {
+	query := NewQuery(this.TableName()).
+		Attr("agentId", agentId).
+		Attr("isRead", types.Int(isRead)).
+		Offset(offset).
+		Limit(size).
+		Desc("_id")
+	if item.AppId != "" {
+		query = query.Attr("appId", item.AppId)
+	}
+	if item.ItemId != "" {
+		query = query.Attr("itemId", item.ItemId)
+	}
+	if item.StartTime > 0 {
+		query = query.Gte("time_stamp", item.StartTime)
+	}
+	if item.EndTime > 0 {
+		query = query.Lte("time_stamp", item.EndTime)
+	}
+	ones, err := query.FindOnes(new(notices.Notice))
+	if err != nil {
+		return nil, err
+	}
+
+	result := []*notices.Notice{}
+	for _, one := range ones {
+		result = append(result, one.(*notices.Notice))
+	}
+	return result, err
+}
+
 // 删除Agent相关通知
 func (this *SQLNoticeDAO) DeleteNoticesForAgent(agentId string) error {
 	return NewQuery(this.TableName()).

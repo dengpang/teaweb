@@ -10,7 +10,6 @@ function build() {
 	TARGET=${ROOT}/dist/teaweb-v${VERSION}
 	GO_CMD="go"
 	GOROOT=""
-
 	EXT=""
 	if [ ${GOOS} = "windows" ]; then
 		EXT=".exe"
@@ -52,6 +51,7 @@ function build() {
 	cp -R ${ROOT}/build/configs/postgres.sample.conf ${TARGET}/configs/postgres.conf
 	cp -R ${ROOT}/build/configs/server.sample.www.proxy.conf ${TARGET}/configs/server.www.proxy.conf
 	cp -R ${ROOT}/build/configs/widgets ${TARGET}/configs/
+	cp -R ${ROOT}/build/configs/keyword ${TARGET}/configs/
 	cp -R ${ROOT}/build/www ${TARGET}/
 	cp -R ${ROOT}/build/scripts ${TARGET}
 
@@ -113,7 +113,7 @@ function buildAgent() {
 	VERSION_DATA=$(cat ${ROOT}/internal/teaagent/agentconst/const.go)
 	VERSION_DATA=${VERSION_DATA#*"Version = \""}
 	VERSION=${VERSION_DATA%%[!0-9.]*}
-	TARGET=${ROOT}/dist/teaweb-agent-v${VERSION}
+	TARGET=${ROOT}/dist/monit-agent-v${VERSION}
 	GO_CMD="go"
 	GOROOT=""
 
@@ -151,7 +151,7 @@ function buildAgent() {
 	# linux
 	if [ ${GOOS} = "linux" ]; then
 		mkdir ${TARGET}/scripts
-		cp ${ROOT}/build/scripts/teaweb-agent ${TARGET}/scripts/
+		cp ${ROOT}/build/scripts/monit-agent ${TARGET}/scripts/
 
 		# service manager
 		${GO_CMD} build -ldflags="-s -w" -o ${TARGET}/bin/service-install ${ROOT}/cmd/agent-service-install/main.go
@@ -162,20 +162,20 @@ function buildAgent() {
 		cp ${ROOT}/build/README_AGENT_LINUX.md ${TARGET}/README.md
 	fi
 
-	${GO_CMD} build -ldflags="-s -w" -o ${TARGET}/bin/teaweb-agent${EXT} ${ROOT}/cmd/agent/main.go
+	${GO_CMD} build -ldflags="-s -w" -o ${TARGET}/bin/monit-agent${EXT} ${ROOT}/cmd/agent/main.go
 
 	if [ ! -d "${ROOT}/web/upgrade/${VERSION}/${GOOS}/${GOARCH}" ]; then
 		mkdir -p "${ROOT}/web/upgrade/${VERSION}/${GOOS}/${GOARCH}"
 	fi
 	rm -f "${ROOT}/web/upgrade/${VERSION}/${GOOS}/${GOARCH}"/*
-	cp ${TARGET}/bin/teaweb-agent${EXT} "${ROOT}/web/upgrade/${VERSION}/${GOOS}/${GOARCH}"/teaweb-agent${EXT}
+	cp ${TARGET}/bin/monit-agent${EXT} "${ROOT}/web/upgrade/${VERSION}/${GOOS}/${GOARCH}"/monit-agent${EXT}
 
 	echo "[zip files]"
 	cd ${TARGET}/../
-	if [ -f teaweb-agent-${GOOS}-${GOARCH}-v${VERSION}.zip ]; then
-		rm -f teaweb-agent-${GOOS}-${GOARCH}-v${VERSION}.zip
+	if [ -f monit-agent-${GOOS}-${GOARCH}-v${VERSION}.zip ]; then
+		rm -f monit-agent-${GOOS}-${GOARCH}-v${VERSION}.zip
 	fi
-	zip -r -X -q teaweb-agent-${GOOS}-${GOARCH}-v${VERSION}.zip teaweb-agent-v${VERSION}/
+	zip -r -X -q monit-agent-${GOOS}-${GOARCH}-v${VERSION}.zip monit-agent-v${VERSION}/
 	cd -
 
 	echo "[clean files]"

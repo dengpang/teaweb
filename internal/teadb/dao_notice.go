@@ -46,6 +46,9 @@ type NoticeDAOInterface interface {
 	// 列出某个Agent相关的消息
 	ListAgentNotices(agentId string, isRead bool, offset int, size int) ([]*notices.Notice, error)
 
+	// 列出某个Agent相关的消息
+	ListAgentNoticesByItem(agentId string, isRead bool, offset int, size int, item Item) ([]*notices.Notice, error)
+
 	// 删除Agent相关通知
 	DeleteNoticesForAgent(agentId string) error
 
@@ -64,3 +67,14 @@ type NoticeDAOInterface interface {
 	// 设置Agent所有通知已读
 	UpdateAllAgentNoticesRead(agentId string) error
 }
+
+type (
+	Item struct {
+		AppId     string `json:"app_id"`     //apps id
+		ItemId    string `json:"item_id"`    //监控项ID
+		TaskId    string `json:"task_id"`    //任务ID
+		Level     int    `json:"level"`      //等级 1信息 2告警 3错误 4成功
+		StartTime int    `json:"start_time"` //时间戳
+		EndTime   int    `json:"end_time"`   //时间戳
+	}
+)

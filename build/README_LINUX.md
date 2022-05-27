@@ -1,32 +1,28 @@
-# Documents
-http://teaos.cn/doc
 
 # Commands
 ~~~bash
 # start server
-./bin/teaweb start
+./bin/monit start
 
 # stop server
-./bin/teaweb stop
+./bin/monit stop
 
 # restart server
-./bin/teaweb restart
+./bin/monit restart
 
 # print helps
-./bin/teaweb -h
+./bin/monit -h
 
 # print version
-./bin/teaweb -v
+./bin/monit -v
 
 # reload all proxy servers config
-./bin/teaweb reload
+./bin/monit reload
 
 # reset service state
-./bin/teaweb reset
+./bin/monit reset
 
 # print server status
-./bin/teaweb status
+./bin/monit status
 ~~~
 
-# Issues
-Report issues: https://github.com/TeaWeb/build/issues

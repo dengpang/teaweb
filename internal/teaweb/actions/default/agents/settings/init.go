@@ -22,6 +22,7 @@ func init() {
 			Post("/deleteNoticeReceivers", new(DeleteNoticeReceiversAction)).
 			Post("/on", new(OnAction)).
 			Post("/off", new(OffAction)).
+			Get("/download", new(DownloadAction)).
 			EndAll()
 	})
 }

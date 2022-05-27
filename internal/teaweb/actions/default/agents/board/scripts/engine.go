@@ -296,7 +296,6 @@ func (this *Engine) callRenderChart(call otto.FunctionCall) otto.Value {
 			m["options"] = maps.NewMap(v)
 		}
 	}
-
 	this.chartOptions = append(this.chartOptions, m)
 	return otto.UndefinedValue()
 }

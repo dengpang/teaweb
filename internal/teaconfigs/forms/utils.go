@@ -9,4 +9,5 @@ var allElementTypes = map[string]ElementInterface{
 	"EnvBox":          new(EnvBox),
 	"HTTPBox":         new(HTTPBox),
 	"SingleValueList": new(SingleValueList),
+	"KeywordCheckBox": new(KeywordCheckBox),
 }

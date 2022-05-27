@@ -165,6 +165,39 @@ func (this *MongoNoticeDAO) ListAgentNotices(agentId string, isRead bool, offset
 	return result, err
 }
 
+// 列出某个Agent相关的消息 按更多条件筛选
+func (this *MongoNoticeDAO) ListAgentNoticesByItem(agentId string, isRead bool, offset int, size int, item Item) ([]*notices.Notice, error) {
+	query := NewQuery(this.TableName()).
+		Attr("agent.agentId", agentId).
+		Attr("isRead", isRead).
+		Offset(offset).
+		Limit(size).
+		Desc("_id")
+	if item.AppId != "" {
+		query = query.Attr("agent.appId", item.AppId)
+	}
+	if item.ItemId != "" {
+		query = query.Attr("agent.itemId", item.ItemId)
+	}
+	if item.StartTime > 0 {
+		query = query.Gte("timestamp", item.StartTime)
+	}
+	if item.EndTime > 0 {
+		query = query.Lte("timestamp", item.EndTime)
+	}
+
+	ones, err := query.FindOnes(new(notices.Notice))
+	if err != nil {
+		return nil, err
+	}
+
+	result := []*notices.Notice{}
+	for _, one := range ones {
+		result = append(result, one.(*notices.Notice))
+	}
+	return result, err
+}
+
 func (this *MongoNoticeDAO) DeleteNoticesForAgent(agentId string) error {
 	return NewQuery(this.TableName()).
 		Attr("agent.agentId", agentId).

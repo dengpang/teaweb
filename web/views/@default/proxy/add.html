@@ -138,9 +138,9 @@
 							<option value="tcp">TCP反向代理服务</option>
 							<option value="static">普通的Web服务</option>
 						</select>
-						<p class="comment" v-if="serverType == 'proxy'">[Client] -&gt; [TeaWeb -&gt; Server] 通过TeaWeb将用户请求转发到一个或一组后端服务器中，通常可以实现负载均衡和反向代理服务。</p>
-						<p class="comment" v-if="serverType == 'forwardProxy'">[Client -&gt; TeaWeb] -&gt; [Server] 客户端通过配置此代理地址访问网络服务，通常用来隐藏客户端地址和安全审计使用。</p>
-						<p class="comment" v-if="serverType == 'static'">通过TeaWeb分发服务上的静态文件，之后也可以通过配置路径规则来实现动态内容的分发，比如Fastcgi。</p>
+						<p class="comment" v-if="serverType == 'proxy'">[Client] -&gt; [监控平台 -&gt; Server] 通过监控平台将用户请求转发到一个或一组后端服务器中，通常可以实现负载均衡和反向代理服务。</p>
+						<p class="comment" v-if="serverType == 'forwardProxy'">[Client -&gt; 监控平台] -&gt; [Server] 客户端通过配置此代理地址访问网络服务，通常用来隐藏客户端地址和安全审计使用。</p>
+						<p class="comment" v-if="serverType == 'static'">通过监控平台分发服务上的静态文件，之后也可以通过配置路径规则来实现动态内容的分发，比如Fastcgi。</p>
 						<p class="comment" style="padding:0">这里的服务类型只是方便你快速添加代理服务，成功添加后可以任意修改配置。</p>
 					</td>
 				</tr>
@@ -177,7 +177,7 @@
 							<button class="ui button tiny" type="button" @click="addBackend()">+</button>
 						</div>
 						<p class="comment">实际提供服务的后端服务器地址，比如nginx、Tomcat的访问地址，通常为IP加端口，比如"192.168.1.101:8080"。</p>
-						<p class="comment" style="padding:0">应配置好防火墙或者其他设置，以确保TeaWeb所在服务器可以正常访问到这些地址。</p>
+						<p class="comment" style="padding:0">应配置好防火墙或者其他设置，以确保监控平台所在服务器可以正常访问到这些地址。</p>
 
 					</td>
 				</tr>

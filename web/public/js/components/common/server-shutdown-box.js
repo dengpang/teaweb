@@ -55,7 +55,7 @@ Vue.component("server-shutdown-box", {
 					<td class="title">页面URL</td> \
 					<td> \
 						<input type="text" :name="prefix + \'URL\'" ref="urlInput" v-model="vShutdown.url" placeholder="页面文件路径或一个完整URL" maxlength="100" style="width:30em"/> \
-						<p class="comment">页面文件是相对于TeaWeb目录的页面文件比如web/pages/40x.html，或者一个完整的URL。<a href="" @click.prevent="showTypicalPages()">推荐页面<i class="icon angle" :class="{down:!typicalPageVisible, up:typicalPageVisible}"></i></a> </p> \
+						<p class="comment">页面文件是相对于监控平台目录的页面文件比如web/pages/40x.html，或者一个完整的URL。<a href="" @click.prevent="showTypicalPages()">推荐页面<i class="icon angle" :class="{down:!typicalPageVisible, up:typicalPageVisible}"></i></a> </p> \
 						<div v-show="typicalPageVisible"> \
 							<a class="ui label tiny" style="margin-bottom:2px;" @click.prevent="selectTypicalPage(page)" v-for="page in typicalPages" title="点击选中">{{page.name}}: <var>{{page.url}}</var></a> \
 						</div> \

@@ -86,6 +86,7 @@ func (this *AddItemAction) Run(params struct {
 	this.Data["formGroups2"] = groups2
 	this.Data["formCSS"] = css
 	this.Data["formJavascript"] = javascript
+	this.Data["interval"] = 30
 
 	this.Show()
 }
@@ -161,7 +162,7 @@ func (this *AddItemAction) RunPost(params struct {
 	// 刷新间隔等其他选项
 	item.Interval = fmt.Sprintf("%ds", params.Interval)
 	item.RecoverSuccesses = params.RecoverSuccesses
-
+	//fmt.Println("1")
 	// 阈值设置
 	for index, param := range params.CondParams {
 		if index < len(params.CondValues) &&
@@ -200,12 +201,14 @@ func (this *AddItemAction) RunPost(params struct {
 			item.AddThreshold(t)
 		}
 	}
+	//fmt.Println("2")
 
 	app.AddItem(item)
 	err = agent.Save()
 	if err != nil {
 		this.Fail("保存失败：" + err.Error())
 	}
+	//fmt.Println("3")
 
 	// 通知更新
 	agentutils.PostAgentEvent(agent.Id, agentutils.NewAgentEvent("ADD_ITEM", maps.Map{
@@ -222,6 +225,8 @@ func (this *AddItemAction) RunPost(params struct {
 			logs.Error(err)
 		}
 	}
+
+	//fmt.Println("4")
 
 	this.Success()
 }

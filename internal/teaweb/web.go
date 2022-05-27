@@ -54,6 +54,7 @@ import (
 	_ "github.com/TeaWeb/build/internal/teaweb/actions/default/settings/backup"
 	_ "github.com/TeaWeb/build/internal/teaweb/actions/default/settings/cluster"
 	_ "github.com/TeaWeb/build/internal/teaweb/actions/default/settings/database"
+	_ "github.com/TeaWeb/build/internal/teaweb/actions/default/settings/keyword"
 	_ "github.com/TeaWeb/build/internal/teaweb/actions/default/settings/login"
 	_ "github.com/TeaWeb/build/internal/teaweb/actions/default/settings/mongo"
 	_ "github.com/TeaWeb/build/internal/teaweb/actions/default/settings/mysql"
@@ -123,7 +124,6 @@ func Start() {
 		ReadHeaderTimeout(3*time.Second).
 		ReadTimeout(60*time.Second).
 		AccessLog(false).
-
 		Get("/", new(index.IndexAction)).
 		Get("/logout", new(logout.IndexAction)).
 		Get("/css/semantic.min.css", func(req *http.Request, writer http.ResponseWriter) {
@@ -147,9 +147,7 @@ func Start() {
 		Get("/js/sortable.min.js", func(req *http.Request, writer http.ResponseWriter) {
 			compressResource(writer, Tea.PublicDir()+"/js/sortable.min.js", "text/javascript; charset=utf-8")
 		}).
-
 		EndAll().
-
 		Session(sessions.NewFileSessionManager(
 			86400,
 			"gSeDQJJ67tAVdnguDAQdGmnDVrjFd2I9",

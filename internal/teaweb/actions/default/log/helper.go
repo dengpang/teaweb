@@ -25,7 +25,7 @@ func (this *Helper) BeforeAction(action *actions.ActionObject) {
 		menu.AlwaysActive = true
 		menuGroup.AlwaysMenu = menu
 		menu.Index = 10000
-		menu.Add("系统日志", "", "/log/runtime", action.HasPrefix("/log/runtime"))
+		//menu.Add("系统日志", "", "/log/runtime", action.HasPrefix("/log/runtime"))
 		menu.Add("操作日志", "", "/log/audit", action.HasPrefix("/log/audit"))
 	}
 

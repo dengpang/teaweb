@@ -52,7 +52,7 @@ func (this *AdminSecurity) Validate() error {
 	if len(this.TeaVersion) == 0 {
 		this.TeaVersion = teaconst.TeaVersion
 		this.DirAutoComplete = true
-		this.PasswordEncryptType = "clear"
+		this.PasswordEncryptType = "md5"
 	}
 
 	this.allowIPRanges = []*shared.IPRangeConfig{}

@@ -91,6 +91,7 @@ function ChartRender(charts, eventCallback) {
 			});
 		}
 
+
 		// 开始绘制
 		var chartType = v.type;
 		var f = "render" + chartType[0].toUpperCase() + chartType.substring(1) + "Chart";
@@ -116,11 +117,14 @@ function ChartRender(charts, eventCallback) {
 	};
 
 	this.renderLineChart = function (chart) {
+
 		var chartBox = Tea.element("#chart-box-" + chart.id)[0];
 		if (chartBox == null) {
 			return "";
 		}
-		var c = echarts.init(chartBox);
+
+
+		var c = echarts.init(chartBox, null, {renderer: 'svg'});
 		chartObjects.push(c);
 
 		var bottomHeight = (chart.labels == null || chart.labels.length == 0) ? 16 : 20;
@@ -229,8 +233,9 @@ function ChartRender(charts, eventCallback) {
 			},
 			animation: false
 		};
-
+		c.clear()
 		c.setOption(option);
+
 		return "";
 	};
 
@@ -239,7 +244,7 @@ function ChartRender(charts, eventCallback) {
 		if (chartBox == null) {
 			return "";
 		}
-		var c = echarts.init(chartBox);
+		var c = echarts.init(chartBox, null, {renderer: 'svg'});
 		chartObjects.push(c);
 
 		var option = {
@@ -311,7 +316,7 @@ function ChartRender(charts, eventCallback) {
 			animation: false,
 			color: chart.colors
 		};
-
+		c.clear()
 		c.setOption(option);
 	};
 
@@ -383,7 +388,7 @@ function ChartRender(charts, eventCallback) {
 			chartBox.style.cssText += ";height:" + chart.options.height + "em";
 		}
 
-		var c = echarts.init(chartBox);
+		var c = echarts.init(chartBox, null, {renderer: 'svg'});
 		chartObjects.push(c);
 		var seriesIndexes = [0, 1];
 		if (chart.values.length > 0) {
@@ -436,7 +441,7 @@ function ChartRender(charts, eventCallback) {
 			animation: false,
 			color: chart.colors
 		};
-
+		c.clear()
 		c.setOption(option);
 	};
 

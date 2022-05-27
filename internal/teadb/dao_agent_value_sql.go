@@ -165,6 +165,44 @@ func (this *SQLAgentValueDAO) ListItemValues(agentId string, appId string, itemI
 	return result, nil
 }
 
+// 列出数值
+func (this *SQLAgentValueDAO) ListItemValuesByTime(agentId string, appId string, itemId string, noticeLevel notices.NoticeLevel, lastId string, offset int, size int, startTime int64, entTime int64) ([]*agents.Value, error) {
+	query := NewQuery(this.TableName(agentId))
+	query.Attr("appId", appId)
+	query.Attr("itemId", itemId)
+	query.Node()
+	query.Offset(offset)
+	query.Limit(size)
+	query.Desc("createdAt")
+	if startTime > 0 {
+		query.Gte("createdAt", startTime)
+	}
+	if entTime > 0 {
+		query.Lte("createdAt", entTime)
+	}
+	if noticeLevel > 0 {
+		if noticeLevel == notices.NoticeLevelInfo {
+			query.Attr("noticeLevel", []interface{}{notices.NoticeLevelInfo, notices.NoticeLevelNone})
+		} else {
+			query.Attr("noticeLevel", noticeLevel)
+		}
+	}
+
+	if len(lastId) > 0 {
+		query.Lt("_id", lastId)
+	}
+
+	ones, err := query.FindOnes(new(agents.Value))
+	if err != nil {
+		return nil, err
+	}
+	result := []*agents.Value{}
+	for _, one := range ones {
+		result = append(result, one.(*agents.Value))
+	}
+	return result, nil
+}
+
 // 分组查询
 func (this *SQLAgentValueDAO) QueryValues(query *Query) ([]*agents.Value, error) {
 	if len(query.table) > 0 {

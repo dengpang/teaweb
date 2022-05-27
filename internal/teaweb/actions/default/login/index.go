@@ -111,7 +111,7 @@ func (this *IndexAction) RunPost(params struct {
 
 		// Session
 		params.Auth.StoreUsername(user.Username, params.Remember)
-
+		// CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o teaweb ./cmd/teaweb/main.go
 		// 记录登录IP
 		user.LoggedAt = time.Now().Unix()
 		user.LoggedIP = this.RequestRemoteIP()

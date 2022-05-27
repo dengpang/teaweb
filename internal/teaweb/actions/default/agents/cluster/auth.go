@@ -16,7 +16,7 @@ func (this *AuthAction) Run(params struct {
 }) {
 	params.Must.
 		Field("master", params.Master).
-		Require("请输入TeaWeb访问地址").
+		Require("请输入访问地址").
 		Field("dir", params.Dir).
 		Require("请输入安装目录").
 		Field("username", params.Username).

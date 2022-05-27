@@ -119,7 +119,7 @@ func (this *TeaWebSource) Form() *forms.Form {
 		{
 			field := forms.NewTextBox("API地址", "")
 			field.Rows = 2
-			field.Comment = "格式为：http://TeaWeb访问地址/api/monitor?TeaKey=登录用户密钥 <a href=\"http://teaos.cn/doc/advanced/APIMonitor.md\" target=\"_blank\">说明文档&raquo;</a>"
+			field.Comment = "格式为：http://x.x.x.x:7788/api/monitor?TeaKey=登录用户密钥 <a href=\"http://teaos.cn/doc/advanced/APIMonitor.md\" target=\"_blank\">说明文档&raquo;</a>"
 			field.Code = "api"
 			field.IsRequired = true
 			field.MaxLength = 200

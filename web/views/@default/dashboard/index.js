@@ -5,13 +5,25 @@ Tea.context(function () {
 	this.logs = [];
 	this.agentId = "local";
 
+	this.num = 0
+
+
+	this.refresh = function(){
+		this.$delay(function () {
+			location.reload();
+			return true;
+		}, 600 * 1000);
+	}
 	this.$delay(function () {
 		this.testMongo();
 		this.loadData();
 		this.loadLogs();
+		this.refresh();
 	});
 
 	this.loadData = function () {
+
+		this.num ++
 		this.$post("/agents/board")
 			.params({
 				"agentId": "local"
@@ -25,8 +37,12 @@ Tea.context(function () {
 					this.isLoaded = true;
 				});
 				this.$delay(function () {
+					if(this.num>20){
+						location.reload();
+						return true;
+					}
 					this.loadData();
-				}, 5000);
+				}, 30000);
 			});
 	};
 

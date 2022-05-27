@@ -9,7 +9,7 @@
 <h3></h3>
 <div class="ui message success" v-if="isConnected">已正常连接到MongoDB</div>
 <div v-if="!isConnected">
-    <p class="ui message warning">如果已经通过TeaWeb下载过MongoDB，TeaWeb会自动直接尝试启动。</p>
+    <p class="ui message warning">如果已经通过平台下载过MongoDB，平台会自动直接尝试启动。</p>
 
     <div v-if="!isInstalled">
         <button class="ui button primary" type="button" v-if="!isInstalling" v-on:click="install()">开始安装</button>
@@ -36,7 +36,7 @@
                     <div class="ui progress blue tiny" style="padding:0;margin:0">
                         <div class="bar" :style="{width: installProgress + '%'}"></div>
                     </div>
-					<p class="comment">安装到TeaWeb安装目录下的mongodb/目录</p>
+					<p class="comment">安装到监控平台安装目录下的mongodb/目录</p>
                 </td>
             </tr>
             <tr>

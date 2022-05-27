@@ -81,7 +81,7 @@ func AddTabbar(actionWrapper actions.ActionWrapper) {
 					// 计算数量
 					_, found := counterMapping[group.Id]
 					if found {
-						counterMapping[group.Id] ++
+						counterMapping[group.Id]++
 					} else {
 						counterMapping[group.Id] = 1
 					}
@@ -99,7 +99,7 @@ func AddTabbar(actionWrapper actions.ActionWrapper) {
 				groupId := ""
 				_, found := counterMapping[groupId]
 				if found {
-					counterMapping[groupId] ++
+					counterMapping[groupId]++
 				} else {
 					counterMapping[groupId] = 1
 				}
@@ -158,6 +158,8 @@ func AddTabbar(actionWrapper actions.ActionWrapper) {
 				if agentId != "local" {
 					tabbar.Add("删除", "", "/agents/delete?agentId="+agentId, "trash", action.HasPrefix("/agents/delete"))
 				}
+
+				//tabbar.Add("下载", "", "/agents/settings/download?agentId="+agentId, "fa-arrow-down", action.HasPrefix("/agents/settings/download"))
 				utils.SetTabbar(actionWrapper, tabbar)
 			}
 		}
@@ -169,8 +171,8 @@ func AddTabbar(actionWrapper actions.ActionWrapper) {
 		menu.AlwaysActive = true
 		menuGroup.AlwaysMenu = menu
 		menu.Index = 10000
-		menu.Add("主机", "", "/agents", isIndex)
-		menu.Add("+添加新主机", "", "/agents/addAgent", action.HasPrefix("/agents/addAgent", "/agents/cluster/add"))
+		menu.Add("主机列表", "", "/agents", isIndex)
+		menu.Add("+添加主机", "", "/agents/addAgent", action.HasPrefix("/agents/addAgent", "/agents/cluster/add"))
 		menu.Add("分组管理", "", "/agents/groups", action.HasPrefix("/agents/groups"))
 	}
 

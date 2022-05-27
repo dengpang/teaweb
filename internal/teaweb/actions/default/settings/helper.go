@@ -57,13 +57,16 @@ func (this *Helper) BeforeAction(action *actions.ActionObject) {
 			}
 
 			// 数据库
-			menu.Add("切换数据库", "", "/settings/database", action.Spec.HasClassPrefix("database."))
+			//menu.Add("切换数据库", "", "/settings/database", action.Spec.HasClassPrefix("database."))
 
 			// 备份
 			menu.Add("备份", "", "/settings/backup", action.Spec.HasClassPrefix("backup."))
+
+			// 敏感词管理
+			menu.Add("敏感词管理", "", "/settings/keyword", action.Spec.HasClassPrefix("keyword."))
 		}
 
-		menu.Add("检查版本更新", "", "/settings/update", action.Spec.HasClassPrefix("update."))
+		//menu.Add("检查版本更新", "", "/settings/update", action.Spec.HasClassPrefix("update."))
 	}
 
 	menuGroup.Sort()

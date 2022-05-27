@@ -45,7 +45,7 @@ func StartTestServer() {
 		Get("/redirect2", func(req *http.Request, resp http.ResponseWriter) {
 			for k, v := range req.Header {
 				for _, v1 := range v {
-					_, _ = resp.Write([]byte( k + ": " + v1 + "\n"))
+					_, _ = resp.Write([]byte(k + ": " + v1 + "\n"))
 				}
 			}
 
@@ -56,7 +56,7 @@ func StartTestServer() {
 			_, _ = resp.Write([]byte("Get " + req.URL.String() + "\n"))
 			for k, v := range req.Header {
 				for _, v1 := range v {
-					_, _ = resp.Write([]byte( k + ": " + v1 + "\n"))
+					_, _ = resp.Write([]byte(k + ": " + v1 + "\n"))
 				}
 			}
 		}).
@@ -138,7 +138,7 @@ func StartTestServer() {
 			compressResource(resp, Tea.PublicDir()+"/js/vue.min.js", "text/javascript; charset=utf-8")
 		}).
 		Get("/image", func(req *http.Request, resp http.ResponseWriter) {
-			data, err := ioutil.ReadFile(Tea.PublicDir() + "/images/logo.png")
+			data, err := ioutil.ReadFile(Tea.PublicDir() + "/images/favicon.ico") //logo.png
 			if err != nil {
 				_, _ = resp.Write([]byte(err.Error()))
 			} else {

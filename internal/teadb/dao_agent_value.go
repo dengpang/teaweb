@@ -34,6 +34,9 @@ type AgentValueDAOInterface interface {
 	// 列出数值
 	ListItemValues(agentId string, appId string, itemId string, noticeLevel notices.NoticeLevel, lastId string, offset int, size int) ([]*agents.Value, error)
 
+	// 列出数值 按时间
+	ListItemValuesByTime(agentId string, appId string, itemId string, noticeLevel notices.NoticeLevel, lastId string, offset int, size int, startTime int64, entTime int64) ([]*agents.Value, error)
+
 	// 分组查询
 	QueryValues(query *Query) ([]*agents.Value, error)
 

@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"fmt"
 	"github.com/iwind/TeaGo/actions"
 	"net/http"
 )
@@ -50,7 +51,9 @@ func (this *UserShouldAuth) StoreUsername(username string, remember bool) {
 		}
 		this.action.AddCookie(cookie)
 	}
-	this.action.Session().Write("username", username)
+	res := this.action.Session().Write("username", username)
+	fmt.Println("res==", res)
+	fmt.Println(this.action.Session().GetString("username"))
 }
 
 func (this *UserShouldAuth) Logout() {

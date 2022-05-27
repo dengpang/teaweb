@@ -2,11 +2,11 @@
 
 <div class="ui menu tabular small">
 	<a href="/agents/addAgent" class="item active">手动部署</a>
-	<a href="/agents/cluster/add" class="item">集群部署</a>
+	<!--<a href="/agents/cluster/add" class="item">集群部署</a>-->
 </div>
 
 <div>
-    <p class="comment">添加主机后，请在主机上<a href="http://teaos.cn/doc/agents/Install.md" target="_blank">安装Agent</a>。</p>
+    <p class="comment">添加主机后，请在主机上安装Agent。</p>
     <form class="ui form" data-tea-action="/agents/addAgent" data-tea-success="submitSuccess">
         <table class="ui table definition">
             <tr>
@@ -90,7 +90,7 @@
 							<input type="checkbox" name="autoUpdates" value="1" checked="checked"/>
 							<label></label>
 						</div>
-						<p class="comment">是否在TeaWeb服务器端有更新时自动更新，这个特性需要在TeaWeb安装目录下有<em>upgrade/</em>升级包安装目录时才会启用。此特性不需要连接官网。</p>
+						<p class="comment">是否在监控系统服务器端有更新时自动更新，这个特性需要在监控系统安装目录下有<em>upgrade/</em>升级包安装目录时才会启用。此特性不需要连接官网。</p>
 					</td>
 				</tr>
                 <tr>

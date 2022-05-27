@@ -55,7 +55,7 @@ func (this *SocketConnectivitySource) Execute(params map[string]string) (value i
 		network = "tcp"
 	}
 
-	conn, err := net.Dial(network, this.Address)
+	conn, err := net.DialTimeout(network, this.Address, time.Second*5)
 	if err != nil {
 		value = maps.Map{
 			"cost": time.Since(before).Seconds(),

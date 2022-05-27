@@ -3,6 +3,8 @@ package forms
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"github.com/TeaWeb/build/internal/teaconfigs/keyword"
 	"github.com/TeaWeb/build/internal/teautils"
 	"github.com/iwind/TeaGo/lists"
 	"github.com/iwind/TeaGo/logs"
@@ -12,6 +14,7 @@ import (
 	"github.com/robertkrimen/otto"
 	"net/http"
 	"reflect"
+	"regexp"
 	"strings"
 )
 
@@ -206,12 +209,41 @@ func (this *Form) ApplyRequest(req *http.Request) (values map[string]interface{}
 				}
 			}
 
+			//fmt.Println("superElement.Code=",superElement.Code,v)
+			if superElement.Namespace == "keywordCheck" && superElement.Code == "keywords" {
+				//敏感词 获取敏感词库信息
+				keywordList := []string{}
+				keywords := []string{}
+				keyByte, _ := json.Marshal(v)
+				json.Unmarshal(keyByte, &keywords)
+				if len(keywords) > 0 {
+					for _, v := range keywords {
+						if v == "" {
+							continue
+						}
+						keyInfo := keyword.NewKeywordConfigFromId(v)
+						if keyInfo != nil && keyInfo.Keyword != "" {
+							s := strings.Split(keyInfo.Keyword, ",")
+							keywordList = append(keywordList, s...)
+						}
+					}
+
+				}
+				keywordsStr := strings.Join(keywordList, ",")
+				reg, _ := regexp.Compile(`[\\\^\$\*\+\?\{\}\.\[\]\(\)\-\|]`)
+				keywordsStr = reg.ReplaceAllStringFunc(keywordsStr, func(b string) string {
+					//正则 元字符需要转义
+					return `\` + b
+				})
+				values["keywordLists"] = keywordsStr
+			}
 			values[superElement.Code] = v
 		}
 	}
 
 	// 全局校验
 	if len(this.ValidateCode) > 0 {
+		fmt.Println(stringutil.JSONEncode(values) + ";" + this.ValidateCode)
 		newValues, err := this.vm.Run("(function() { var values = " + stringutil.JSONEncode(values) + ";" + this.ValidateCode + "})()")
 		if err != nil {
 			return values, "", err

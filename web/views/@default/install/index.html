@@ -3,7 +3,7 @@
 <head>
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
 	<link rel="shortcut icon" href="/images/favicon.png"/>
-	<title>TeaWeb数据库</title>
+	<title>监控平台数据库</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=0">
 	{$TEA.VUE}
 	{$TEA.SEMANTIC}
@@ -11,7 +11,7 @@
 <body>
 
 <div class="main-box">
-	<div>在使用TeaWeb之前，请先设置数据库。这一步不是必需，你可以 <a href="" @click.prevent="skip()">先跳过</a> 。</div>
+	<div>在使用监控平台之前，请先设置数据库。这一步不是必需，你可以 <a href="" @click.prevent="skip()">先跳过</a> 。</div>
 	<div class="ui steps tiny fluid">
 		<div class="ui step" :class="{active:step == 'dbType'}">
 			<div class="content">
@@ -43,7 +43,7 @@
 				<td>
 					<div class="ui radio">
 						<input type="radio" name="dbType" value="mongo" checked="checked" id="mongodb-radio" v-model="dbType"/> &nbsp;
-						<label for="mongodb-radio" class="ui link">MongoDB</label> &nbsp; <a href="https://www.mongodb.com/download-center/community" target="_blank" class="small">官网下载&raquo;</a>  &nbsp; &nbsp; <a v-if="os == 'linux' || os == 'darwin'" href="/settings/mongo/install?action=install" class="small">使用TeaWeb下载安装&raquo;</a>
+						<label for="mongodb-radio" class="ui link">MongoDB</label> &nbsp; <a href="https://www.mongodb.com/download-center/community" target="_blank" class="small">官网下载&raquo;</a>  &nbsp; &nbsp; <a v-if="os == 'linux' || os == 'darwin'" href="/settings/mongo/install?action=install" class="small">使用监控平台下载安装&raquo;</a>
 					</div>
 				</td>
 			</tr>
@@ -99,9 +99,9 @@
 								<input type="checkbox" name="" v-model="mongoAuthEnabled" value="1" />
 								<label></label>
 							</div>
-							<p class="comment">
+							<!--<p class="comment">
 								<a href="http://teaos.cn/doc/settings/MongoDB.md#%E8%AE%A4%E8%AF%81" target="_blank">MongoDB认证相关帮助 &raquo;</a>
-							</p>
+							</p>-->
 						</td>
 					</tr>
 					<tbody v-if="mongoAuthEnabled">

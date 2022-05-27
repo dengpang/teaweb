@@ -168,7 +168,7 @@ func (this *UpdateItemAction) RunPost(params struct {
 	if err != nil {
 		this.FailField(errField, err.Error())
 	}
-
+	//fmt.Println("values=",values)
 	values["dataFormat"] = params.DataFormat
 	item.SourceOptions = values
 

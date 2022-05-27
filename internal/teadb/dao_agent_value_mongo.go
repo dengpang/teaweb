@@ -179,6 +179,52 @@ func (this *MongoAgentValueDAO) ListItemValues(agentId string, appId string, ite
 	return result, nil
 }
 
+func (this *MongoAgentValueDAO) ListItemValuesByTime(agentId string, appId string, itemId string, noticeLevel notices.NoticeLevel, lastId string, offset int, size int, startTime int64, entTime int64) ([]*agents.Value, error) {
+	query := NewQuery(this.TableName(agentId))
+	if len(appId) > 0 {
+		query.Attr("appId", appId)
+	}
+	if len(itemId) > 0 {
+		query.Attr("itemId", itemId)
+	}
+	if startTime > 0 {
+		query.Gte("createdAt", startTime)
+	}
+	if entTime > 0 {
+		query.Lte("createdAt", entTime)
+	}
+	query.Node()
+	query.Offset(offset)
+	query.Limit(size)
+	query.Desc("createdAt")
+
+	if noticeLevel > 0 {
+		if noticeLevel == notices.NoticeLevelInfo {
+			query.Attr("noticeLevel", []interface{}{notices.NoticeLevelInfo, notices.NoticeLevelNone})
+		} else {
+			query.Attr("noticeLevel", noticeLevel)
+		}
+	}
+
+	if len(lastId) > 0 {
+		lastObjectId, err := shared.ObjectIdFromHex(lastId)
+		if err != nil {
+			return nil, err
+		}
+		query.Lt("_id", lastObjectId)
+	}
+
+	ones, err := query.FindOnes(new(agents.Value))
+	if err != nil {
+		return nil, err
+	}
+	result := []*agents.Value{}
+	for _, one := range ones {
+		result = append(result, this.processValue(one.(*agents.Value)))
+	}
+	return result, nil
+}
+
 func (this *MongoAgentValueDAO) QueryValues(query *Query) ([]*agents.Value, error) {
 	ones, err := query.FindOnes(new(agents.Value))
 	if err != nil {

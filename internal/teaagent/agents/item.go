@@ -50,6 +50,8 @@ func (this *Item) Schedule() {
 		}
 
 		t := time.Now()
+		//fmt.Println("source==",this.config.SourceOptions)
+		//fmt.Println("source==",source)
 		value, err := source.Execute(nil)
 		costMs := time.Since(t).Seconds() * 1000
 		if err != nil {

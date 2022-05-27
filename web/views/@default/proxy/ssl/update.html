@@ -144,14 +144,14 @@
 										<td class="title">证书#{{index+1}}文件<em>(Certificate)</em></td>
 										<td>
 											<input type="text" name="certFilesPaths" v-model="cert.certFile"/>
-											<p class="comment">指定TeaWeb所在服务器上的证书文件路径，内容中通常含有"-----BEGIN CERTIFICATE-----"类似的信息。</p>
+											<p class="comment">指定所在服务器上的证书文件路径，内容中通常含有"-----BEGIN CERTIFICATE-----"类似的信息。</p>
 										</td>
 									</tr>
 									<tr>
 										<td>证书#{{index+1}}私钥文件<em>(Private Key)</em></td>
 										<td>
 											<input type="text" name="keyFilesPaths" v-model="cert.keyFile"/>
-											<p class="comment">指定TeaWeb所在服务器上的证书私钥文件路径，内容中通常含有"-----BEGIN RSA PRIVATE KEY-----"类似的信息。</p>
+											<p class="comment">指定所在服务器上的证书私钥文件路径，内容中通常含有"-----BEGIN RSA PRIVATE KEY-----"类似的信息。</p>
 										</td>
 									</tr>
 								</table>

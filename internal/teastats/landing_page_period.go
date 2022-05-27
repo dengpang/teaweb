@@ -13,11 +13,11 @@ type LandingPagePeriodFilter struct {
 }
 
 func (this *LandingPagePeriodFilter) Name() string {
-	return "登陆页统计"
+	return "登录页统计"
 }
 
 func (this *LandingPagePeriodFilter) Description() string {
-	return "登陆页统计"
+	return "登录页统计"
 }
 
 func (this *LandingPagePeriodFilter) Codes() []string {

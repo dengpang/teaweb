@@ -4,15 +4,23 @@ Tea.context(function () {
 	this.$delay(function () {
 		this.loadCharts();
 		this.agentsSortable();
+		this.refresh();
 	});
 
+	this.num = 0
 	/**
 	 * 加载图表
 	 */
 	this.charts = [];
 	this.error = "";
-
+	this.refresh = function(){
+		this.$delay(function () {
+			location.reload();
+			return true;
+		}, 600 * 1000);
+	}
 	this.loadCharts = function () {
+		this.num ++
 		this.$post("$")
 			.params({
 				"agentId": this.agentId
@@ -34,8 +42,12 @@ Tea.context(function () {
 					this.isLoaded = true;
 				});
 				this.$delay(function () {
+					if(this.num>20){
+						location.reload();
+						return true;
+					}
 					this.loadCharts();
-				}, (this.intervalSeconds > 0) ? this.intervalSeconds * 1000 : 10 * 1000);
+				}, (this.intervalSeconds > 0) ? this.intervalSeconds * 1000 : 30 * 1000);
 			});
 	};
 

@@ -1,0 +1,24 @@
+{$layout}
+
+
+
+
+<table class="ui table selectable" v-if="files.length > 0">
+    <thead>
+    <tr>
+        <th>类型</th>
+        <th>关键词数量</th>
+        <th class="three op">操作</th>
+    </tr>
+    </thead>
+    <tr v-for="file in files">
+        <td>{{file.name}}<br/>
+        </td>
+        <td>{{file.number}}个</td>
+        <td>
+            <a v-if="!file.default" :href="'/settings/keyword/update?id=' + file.id" title="编辑">编辑</a>
+            <a v-if="file.default" :href="'/settings/keyword/update?id=' + file.id" title="查看">查看</a>
+        </td>
+    </tr>
+</table>
+

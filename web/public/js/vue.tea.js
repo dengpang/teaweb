@@ -1091,7 +1091,7 @@ window.Tea.key = function () {
 window.Tea.failResponse = function (response) {
     //消息提示
     var hasMessage = false;
-    if (response.message != null && response.message.length > 0) {
+    if (response.message != null && response.message.length > 0 && response.charts!=undefined) {
         hasMessage = true;
         alert(response.message);
     }

@@ -3,6 +3,7 @@ package agents
 import (
 	"database/sql"
 	"github.com/TeaWeb/build/internal/teaconfigs/forms"
+	"github.com/TeaWeb/build/internal/teaconfigs/notices"
 	"github.com/TeaWeb/build/internal/teaconfigs/widgets"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/iwind/TeaGo/maps"
@@ -227,20 +228,67 @@ func (this *MySQLSource) Presentation() *forms.Presentation {
 // 变量
 func (this *MySQLSource) Variables() []*SourceVariable {
 	return []*SourceVariable{
-
+		{
+			Code:        "count",
+			Description: "计数",
+		},
+		{
+			Code:        "sum",
+			Description: "求和",
+		},
 	}
 }
 
 // 阈值
 func (this *MySQLSource) Thresholds() []*Threshold {
 	result := []*Threshold{}
-
+	// 阈值
+	{
+		t := NewThreshold()
+		t.Param = "${sum}"
+		t.Operator = ThresholdOperatorGte
+		t.Value = "1"
+		t.NoticeLevel = notices.NoticeLevelWarning
+		t.NoticeMessage = "容量达到：${sum}MB"
+		result = append(result, t)
+	}
 	return result
 }
 
 // 图表
 func (this *MySQLSource) Charts() []*widgets.Chart {
 	charts := []*widgets.Chart{}
+
+	{
+		// chart
+		chart := widgets.NewChart()
+		chart.Name = "求和统计"
+		chart.Columns = 2
+		chart.Type = "javascript"
+		chart.SupportsTimeRange = true
+		chart.Options = maps.Map{
+			"code": `var chart = new charts.LineChart();
+
+var ones = NewQuery().past(60, time.MINUTE).avg("sum");
+
+var line = new charts.Line();
+line.isFilled = true;
+
+ones.$each(function (k, v) {
+	if (v.value == "") {
+		return;
+	}
+	line.addValue(v.value.sum );
+	chart.addLabel(v.label);
+});
+
+chart.addLine(line);
+chart.render();`,
+		}
+
+		charts = append(charts, chart)
+	}
+
 	return charts
 }
 

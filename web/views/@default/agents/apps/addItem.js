@@ -57,6 +57,13 @@ Tea.context(function () {
 		this.$delay(function () {
 			this.$find("input[name^='" + this.sourceCode + "_']:not([type='hidden'])").first().focus();
 		});
+
+		//暗链监测和敏感词监测 刷新间隔300s
+		if(this.sourceCode=="darkChainCheck" || this.sourceCode=="keywordCheck"){
+			this.interval = 600
+		}else{
+			this.interval = 30
+		}
 	};
 
 	this.changeSource();

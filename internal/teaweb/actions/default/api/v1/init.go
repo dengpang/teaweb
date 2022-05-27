@@ -7,6 +7,8 @@ import (
 	"github.com/TeaWeb/build/internal/teaweb/actions/default/api/v1/agent/task"
 	"github.com/TeaWeb/build/internal/teaweb/actions/default/api/v1/backup"
 	"github.com/TeaWeb/build/internal/teaweb/actions/default/api/v1/cluster"
+	"github.com/TeaWeb/build/internal/teaweb/actions/default/api/v1/keywords"
+	"github.com/TeaWeb/build/internal/teaweb/actions/default/api/v1/notice"
 	"github.com/TeaWeb/build/internal/teaweb/actions/default/api/v1/notice/media"
 	"github.com/TeaWeb/build/internal/teaweb/actions/default/api/v1/proxy"
 	"github.com/TeaWeb/build/internal/teaweb/actions/default/api/v1/proxy/accesslog"
@@ -30,19 +32,29 @@ func init() {
 			Get("/proxy/:serverId/accesslog/next/:lastId/list/:size", new(accesslog.NextListAction)).
 			Get("/proxy/:serverId/stat", new(stat.IndexAction)).
 			Get("/agents", new(agent.AgentsAction)).
+			Post("/agent/add", new(agent.AddAction)).
+			Post("/agent/update", new(agent.UpdateAction)).
+			Get("/agent/info/:agentId", new(agent.AgentInfoAction)).
+			Get("/agent/download", new(agent.DownloadAction)).
 			Get("/agent/:agentId", new(agent.AgentAction)).
 			Get("/agent/:agentId/start", new(agent.StartAction)).
 			Get("/agent/:agentId/stop", new(agent.StopAction)).
 			Get("/agent/:agentId/delete", new(agent.DeleteAction)).
 			Get("/agent/:agentId/apps", new(app.AppsAction)).
 			Get("/agent/:agentId/app/:appId", new(app.AppAction)).
+			Post("/agent/:agentId/app/add/item", new(app.AddItemAction)).
+			Post("/agent/:agentId/app/update/item", new(app.UpdateItemAction)).
+			Post("/agent/:agentId/app/delete/item", new(app.DeleteItemAction)).
+			Post("/agent/:agentId/app/state/item", new(app.ItemStateAction)).
 			Get("/agent/:agentId/app/:appId/item/:itemId", new(item.ItemAction)).
 			Get("/agent/:agentId/app/:appId/item/:itemId/latest", new(item.LatestAction)).
 			Get("/agent/:agentId/app/:appId/item/:itemId/execute", new(item.ExecuteAction)).
+			Get("/agent/:agentId/app/:appId/item/:itemId/value", new(item.ValueAction)).
 			Get("/agent/:agentId/app/:appId/task/:taskId", new(task.TaskAction)).
 			Get("/agent/:agentId/app/:appId/task/:taskId/run", new(task.RunAction)).
 			Get("/notice/medias", new(media.MediasAction)).
 			Get("/notice/media/:mediaId", new(media.MediaAction)).
+			Get("/notice/list", new(notice.IndexAction)).
 			Post("/notice/media/:mediaId/send", new(media.SendAction)).
 			Get("/cluster/node", new(cluster.NodeAction)).
 			Get("/cluster/push", new(cluster.PushAction)).
@@ -52,6 +64,7 @@ func init() {
 			Get("/backup/file/:filename", new(backup.FileAction)).
 			Get("/backup/file/:filename/restore", new(backup.RestoreAction)).
 			Get("/backup/file/:filename/delete", new(backup.DeleteAction)).
+			Get("/keyword/list", new(keywords.KeywordsAction)).
 			EndAll()
 	})
 }

@@ -112,11 +112,11 @@ func scheduleItems() error {
 			if found {
 				runningItem.Stop()
 			}
-
 			item := NewItem(app.Id, itemConfig)
 			item.Schedule()
 			runningItems[itemConfig.Id] = item
 			logs.Println("add item", item.config.Name)
+			//logs.Println("add item", item.config.SourceOptions)
 			runningItemsLocker.Unlock()
 		}
 	}

@@ -100,7 +100,6 @@ func pullEvents() error {
 	if err != nil {
 		return err
 	}
-
 	if respMap == nil {
 		return errors.New("response data should not be nil")
 	}

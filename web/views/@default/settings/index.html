@@ -5,10 +5,10 @@
 </div>
 
 <div v-if="serverChanged" class="ui message warning">
-    配置已改变，部分功能需要在命令行下重启TeaWeb服务后才能生效。
+    配置已改变，部分功能需要在命令行下重启监控平台服务后才能生效。
 </div>
 
-<p class="comment">这里设置TeaWeb管理界面的访问地址。</p>
+<p class="comment">这里设置管理界面的访问地址。</p>
 
 <div v-if="error.length == 0">
     <h3>HTTP <a href="/settings/server/http" v-if="!teaDemoEnabled">修改</a><a v-if="teaDemoEnabled">[演示版无法修改]</a></h3>

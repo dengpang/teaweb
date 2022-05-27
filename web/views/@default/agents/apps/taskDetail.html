@@ -40,7 +40,7 @@
     <tr>
         <td>任务ID</td>
         <td>{{task.id}}
-			<p class="comment">可以在Agent主机上通过运行 <em>bin/teaweb-agent run {{task.id}}</em> 来测试这个任务</p>
+			<p class="comment">可以在Agent主机上通过运行 <em>bin/monit-agent run {{task.id}}</em> 来测试这个任务</p>
 		</td>
     </tr>
     <tr>
@@ -85,7 +85,7 @@
         <td>
             <span v-if="task.isBooting" class="green">Y</span>
             <span v-if="!task.isBooting" class="disabled">N</span>
-            <p class="comment" v-if="task.isBooting">表示这个任务是随TeaWeb启动的任务</p>
+            <p class="comment" v-if="task.isBooting">表示这个任务是随平台启动的任务</p>
         </td>
     </tr>
     <tr>

@@ -33,6 +33,7 @@ type AgentConfig struct {
 	AutoUpdates         bool         `yaml:"autoUpdates" json:"autoUpdates"`                 // 是否开启自动更新
 	AppsIsInitialized   bool         `yaml:"appsIsInitialized" json:"appsIsInitialized"`     // 是否已经初始化App
 	GroupKey            string       `yaml:"groupKey" json:"groupKey"`                       // 注册使用的密钥
+	Simple              bool         `yaml:"simple" json:"simple"`                           //简单模式 监控项只添加 cpu，内存，磁盘
 
 	NoticeSetting map[notices.NoticeLevel][]*notices.NoticeReceiver `yaml:"noticeSetting" json:"noticeSetting"`
 }
@@ -386,7 +387,7 @@ func (this *AgentConfig) AddDefaultApps() {
 		}
 
 		// load
-		{
+		if !this.Simple {
 			// item
 			item := NewItem()
 			item.Id = "cpu.load"
@@ -433,7 +434,7 @@ func (this *AgentConfig) AddDefaultApps() {
 		}
 
 		// clock
-		{
+		if !this.Simple {
 			// item
 			item := NewItem()
 			item.Id = "clock"
@@ -470,7 +471,7 @@ chart.render();
 		}
 
 		// network out && network in
-		{
+		if !this.Simple {
 			// item
 			item := NewItem()
 			item.Id = "network.usage"
@@ -492,7 +493,28 @@ chart.render();
 			board.AddChart(app.Id, item.Id, "network.usage.sent")
 			board.AddChart(app.Id, item.Id, "network.usage.received")
 		}
+		//网络连接数
+		if !this.Simple {
+			// item
+			item := NewItem()
+			item.Id = "connections.usage"
+			item.Name = "网络连接数"
+			item.Interval = "60s"
 
+			source := NewConnectionsSource()
+			source.DataFormat = SourceDataFormatJSON
+			item.SourceCode = source.Code()
+			item.SourceOptions = ConvertSourceToMap(source)
+
+			app.AddItem(item)
+
+			// 阈值
+			item.AddThreshold(source.Thresholds()...)
+
+			// 图表
+			item.AddFilterCharts(source.Charts(), "connections.usage.chart1")
+			board.AddChart(app.Id, item.Id, "connections.usage.chart1")
+		}
 		// disk
 		{
 			// item
@@ -514,6 +536,29 @@ chart.render();
 			// 图表
 			item.AddFilterCharts(source.Charts(), "disk.usage.chart1")
 			board.AddChart(app.Id, item.Id, "disk.usage.chart1")
+		}
+
+		//io数据
+		if !this.Simple {
+			// item
+			item := NewItem()
+			item.Id = "disk.stat"
+			item.Name = "磁盘IO"
+			item.Interval = "60s"
+
+			source := NewIOStatSource()
+			source.DataFormat = SourceDataFormatJSON
+			item.SourceCode = source.Code()
+			item.SourceOptions = ConvertSourceToMap(source)
+
+			app.AddItem(item)
+
+			// 阈值
+			item.AddThreshold(source.Thresholds()...)
+
+			// 图表
+			item.AddFilterCharts(source.Charts(), "disk.stat")
+			board.AddChart(app.Id, item.Id, "disk.stat")
 		}
 	}
 }

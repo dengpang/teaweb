@@ -15,7 +15,7 @@
 <div>
     {$template "menu"}
 
-    <p><i class="icon info circle"></i><strong>如果</strong>你需要在TeaWeb之前加入一个代理服务，可以使用以下的配置：</p>
+    <p><i class="icon info circle"></i><strong>如果</strong>你需要在监控平台之前加入一个代理服务，可以使用以下的配置：</p>
 
     <table class="ui table selectable">
         <thead>
@@ -39,7 +39,7 @@
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $remote_addr;
 
-        # teaweb bind address
+        # 监控平台 bind address
         proxy_pass http://<span v-if="server.listen.length > 0">{{server.listen[0]}}</span><span v-if="server.listen.length == 0" class="disabled">[请先绑定网络地址]</span>;
     }
 }</div>

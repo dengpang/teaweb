@@ -1,6 +1,8 @@
 package agentutils
 
-import "sync"
+import (
+	"sync"
+)
 
 var agentStateMap = map[string]*AgentState{} //agentId => state
 var agentStateLocker = sync.Mutex{}

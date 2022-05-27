@@ -90,6 +90,7 @@ func (this *ConnectionsSource) Charts() []*widgets.Chart {
 	{
 		// chart
 		chart := widgets.NewChart()
+		chart.Id = "connections.usage.chart1"
 		chart.Name = "网络连接数"
 		chart.Columns = 2
 		chart.Type = "javascript"

@@ -67,7 +67,7 @@ func downloadConfig() error {
 	if err != nil {
 		return err
 	}
-
+	//fmt.Println("download map=",respMap)
 	if respMap == nil {
 		return errors.New("response data should not be nil")
 	}
