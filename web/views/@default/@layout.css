@@ -757,3 +757,26 @@ var.dash {
 .label {
     word-break: break-all;
 }
+
+/** page **/
+.page-list {
+    margin-top: 1em;
+    border-left: 1px solid #ddd;
+}
+.page-list a {
+    display: inline-block;
+    background: #fafafa;
+    color: #666;
+    padding: 6px 12px;
+    margin: 0;
+    font-size: 0.9em;
+    border: 1px solid #ddd;
+    border-left: 0;
+}
+.page-list a.active {
+    background: #2185d0 !important;
+    color: white;
+}
+.page-list a:hover {
+    background: #eee;
+}

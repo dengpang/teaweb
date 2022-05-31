@@ -3,6 +3,7 @@ package settings
 import (
 	"github.com/TeaWeb/build/internal/teaconfigs/agents"
 	"github.com/iwind/TeaGo/actions"
+	"github.com/iwind/TeaGo/maps"
 )
 
 type InstallAction actions.Action
@@ -18,7 +19,11 @@ func (this *InstallAction) Run(params struct {
 		this.Fail("找不到Agent")
 	}
 
-	this.Data["agent"] = agent
+	//this.Data["agent"] = agent
+	this.Data["agent"] = maps.Map{
+		"id":  agent.Id,
+		"key": agent.Key,
+	}
 	this.Data["isLocal"] = agent.IsLocal()
 
 	this.Show()

@@ -27,10 +27,10 @@ type Notice struct {
 type ProxyCond struct {
 	ServerId   string `bson:"serverId" json:"serverId"`
 	Websocket  bool   `bson:"websocket" json:"websocket"`
-	LocationId string `bson:"locationId" json:"serverId"`
-	RewriteId  string `bson:"rewriteId" json:"serverId"`
-	BackendId  string `bson:"backendId" json:"serverId"`
-	FastcgiId  string `bson:"fastcgiId" json:"serverId"`
+	LocationId string `bson:"locationId" json:"locationId"`
+	RewriteId  string `bson:"rewriteId" json:"rewriteId"`
+	BackendId  string `bson:"backendId" json:"backendId"`
+	FastcgiId  string `bson:"fastcgiId" json:"fastcgiId"`
 	Level      uint8  `bson:"level" json:"level"`
 }
 

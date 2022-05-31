@@ -56,10 +56,11 @@
     </tr>
 </table>
 
-<div class="ui page menu text blue" v-if="countPages > 1">
-    <a :href="'/notices?read=' + (isRead ? 1 : 0) + '&page=' + (page - 1)" class="item active" v-if="page > 1">上页</a>
-    <span v-if="page == 1" class="item">上页</span>
-    <span class="item">|</span>
-    <a :href="'/notices?read=' + (isRead ? 1 : 0) + '&page=' + (page + 1)" class="item active" v-if="page < countPages">下页</a>
-    <span class="item" v-if="countPages == page">下页</span>
-</div>
+<div v-html="page"></div>
+<!--<div class="ui page menu text blue" v-if="countPages > 1">-->
+<!--    <a :href="'/notices?read=' + (isRead ? 1 : 0) + '&page=' + (page - 1)" class="item active" v-if="page > 1">上页</a>-->
+<!--    <span v-if="page == 1" class="item">上页</span>-->
+<!--    <span class="item">|</span>-->
+<!--    <a :href="'/notices?read=' + (isRead ? 1 : 0) + '&page=' + (page + 1)" class="item active" v-if="page < countPages">下页</a>-->
+<!--    <span class="item" v-if="countPages == page">下页</span>-->
+<!--</div>-->

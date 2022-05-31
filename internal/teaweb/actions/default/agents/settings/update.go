@@ -21,7 +21,16 @@ func (this *UpdateAction) Run(params struct {
 		this.Fail("找不到要修改的Agent")
 	}
 
-	this.Data["agent"] = agent
+	this.Data["agent"] = maps.Map{
+		"id":                  agent.Id,
+		"on":                  agent.On,
+		"name":                agent.Name,
+		"host":                agent.Host,
+		"key":                 agent.Key,
+		"allowAll":            agent.AllowAll,
+		"checkDisconnections": agent.CheckDisconnections,
+		"autoUpdates":         agent.AutoUpdates,
+	}
 	this.Data["groups"] = agents.SharedGroupList().Groups
 	if len(agent.GroupIds) > 0 {
 		this.Data["groupId"] = agent.GroupIds[0]
