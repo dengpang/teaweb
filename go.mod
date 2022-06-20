@@ -16,6 +16,7 @@ require (
 	github.com/JamesClonk/vultr v2.0.1+incompatible
 	github.com/Microsoft/go-winio v0.4.14
 	github.com/OpenDNS/vegadns2client v0.0.0-20180418235048-a3fa4a771d87
+	github.com/PuerkitoBio/goquery v1.8.0 // indirect
 	github.com/TeaWeb/agentinstaller v0.0.0-20200816121010-ed1b610d1130
 	github.com/TeaWeb/plugin v0.0.0-20200816024143-17a5fe926d98
 	github.com/TeaWeb/uaparser v0.0.0-20190526084055-a1c9449348d8
@@ -23,6 +24,7 @@ require (
 	github.com/aliyun/alibaba-cloud-sdk-go v1.61.411
 	github.com/aws/aws-sdk-go v1.29.15
 	github.com/cenkalti/backoff v2.2.1+incompatible
+	github.com/chromedp/chromedp v0.8.2 // indirect
 	github.com/cloudflare/cloudflare-go v0.13.0
 	github.com/cpu/goacmedns v0.0.3
 	github.com/dchest/captcha v0.0.0-20170622155422-6a29415a8364
@@ -44,7 +46,7 @@ require (
 	github.com/labbsr0x/bindman-dns-webhook v1.0.2
 	github.com/lib/pq v1.8.0
 	github.com/linode/linodego v0.20.0
-	github.com/mailru/easyjson v0.7.3
+	github.com/mailru/easyjson v0.7.7
 	github.com/miekg/dns v1.1.31
 	github.com/namedotcom/go v0.0.0-20180403034216-08470befbe04
 	github.com/nrdcg/auroradns v1.0.1
@@ -71,9 +73,9 @@ require (
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
 	go.mongodb.org/mongo-driver v1.4.0
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
-	golang.org/x/net v0.0.0-20200707034311-ab3426394381
+	golang.org/x/net v0.0.0-20210916014120-12bc252f5db8
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
-	golang.org/x/sys v0.0.0-20220128215802-99c3d69c2c27
+	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a
 	google.golang.org/api v0.30.0
 	gopkg.in/ns1/ns1-go.v2 v2.4.2
 	gopkg.in/sourcemap.v1 v1.0.5 // indirect

@@ -211,7 +211,7 @@ func (this *MongoAgentValueDAO) ListItemValuesByTime(agentId string, appId strin
 		if err != nil {
 			return nil, err
 		}
-		query.Lt("_id", lastObjectId)
+		query.Gt("_id", lastObjectId)
 	}
 
 	ones, err := query.FindOnes(new(agents.Value))
