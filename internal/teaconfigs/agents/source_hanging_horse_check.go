@@ -2,13 +2,11 @@ package agents
 
 import (
 	"errors"
-	"fmt"
 	"github.com/TeaWeb/build/internal/teaconfigs/forms"
 	"github.com/TeaWeb/build/internal/teaconfigs/notices"
 	"github.com/TeaWeb/build/internal/teaconfigs/shared"
 	"github.com/TeaWeb/build/internal/teaconfigs/widgets"
 	"github.com/iwind/TeaGo/maps"
-	"net/http"
 	"strconv"
 	"strings"
 	"sync"
@@ -57,7 +55,7 @@ func (this *HangingHouseCheckSource) Execute(params map[string]string) (value in
 			"status":   0,
 			"scanList": "",
 			"scanNum":  0,
-			"list":     "",
+			"list":     make([]CheckRes, 0),
 			"number":   0,
 		}, err
 	}
@@ -66,14 +64,21 @@ func (this *HangingHouseCheckSource) Execute(params map[string]string) (value in
 	if err != nil {
 		level = 2
 	}
-	method := this.Method
-	if len(method) == 0 {
-		method = http.MethodGet
-	}
 
 	//var body io.Reader = nil
 
 	before := time.Now()
+	if !checkChromePort() {
+		err = errors.New("chromeDp 未运行")
+		return maps.Map{
+			"cost":     0,
+			"status":   0,
+			"list":     make([]CheckRes, 0),
+			"scanList": "",
+			"scanNum":  0,
+			"number":   0,
+		}, err
+	}
 	html, err := chromeDpRun(this.URL)
 	if err != nil {
 		value = maps.Map{
@@ -81,7 +86,7 @@ func (this *HangingHouseCheckSource) Execute(params map[string]string) (value in
 			"status":   0,
 			"scanList": "",
 			"scanNum":  0,
-			"list":     "",
+			"list":     make([]CheckRes, 0),
 			"number":   0,
 		}
 		return value, err
@@ -103,12 +108,12 @@ func (this *HangingHouseCheckSource) Execute(params map[string]string) (value in
 		newUrlLock = &sync.Mutex{}
 		resLock    = &sync.Mutex{}
 		wg         = &sync.WaitGroup{}
-		chMax      = make(chan struct{}, 5)
+		chMax      = make(chan struct{}, 10)
 	)
 LOOP:
 	newUrls, urlMap = []string{}, map[string]struct{}{} //重置
 	urlMap = duplicateRemovalUrl(Urls, urlMap)
-	fmt.Println("执行次数  levelOn=", levelOn)
+	//fmt.Println("执行次数  levelOn=", levelOn)
 	//下探等级大于等于当前的等级  并且 需要请求的url地址不为空
 	if level >= levelOn && len(urlMap) > 0 {
 
@@ -133,16 +138,15 @@ LOOP:
 					<-chMax
 				}()
 
-				fmt.Println("url == ", v1, "level==", levelOn)
+				//fmt.Println("url == ", v1, "level==", levelOn)
 
 				subHtml, err := chromeDpRun(v1)
 				if err != nil {
 					return
 				}
-				fmt.Println("level >= levelOn", level >= levelOn)
-				if level >= levelOn { //满足继续下探  才收集下级url地址
+				if level > levelOn { //满足继续下探  才收集下级url地址
 					new_urls, _, err := GetUrlsAndCheck(subHtml, domainTop, domain, v1, 3)
-					fmt.Println("new_urls==", new_urls)
+					//fmt.Println("new_urls==", new_urls)
 					if err == nil {
 						newUrlLock.Lock()
 						newUrls = append(newUrls, new_urls...)
@@ -160,13 +164,10 @@ LOOP:
 				}
 			}(k1)
 		}
-		fmt.Println("wg.Wait start ")
 		wg.Wait()
-		fmt.Println("wg.Wait end ")
 
 		Urls = []string{}
 		Urls = append(Urls, newUrls...)
-		fmt.Println("Urls===", Urls)
 
 		goto LOOP
 	}

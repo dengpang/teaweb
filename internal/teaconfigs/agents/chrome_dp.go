@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net"
 	"regexp"
 	"strconv"
 	"strings"
@@ -74,6 +75,16 @@ type (
 	}
 )
 
+//检查是否有9222端口，来判断是否运行在linux上
+func checkChromePort() bool {
+	addr := net.JoinHostPort("", "9222")
+	conn, err := net.DialTimeout("tcp", addr, 1*time.Second)
+	if err != nil {
+		return false
+	}
+	defer conn.Close()
+	return true
+}
 func chromeDpRun(url string) (html *string, err error) {
 	//url := "http://127.0.0.1"
 	engine := &ChromeDpEngine{
@@ -129,7 +140,7 @@ func newChromeDpCtx() context.Context {
 	ctx, _ := chromedp.NewExecAllocator(context.Background(), options...)
 	ctx, _ = chromedp.NewContext(ctx, chromedp.WithLogf(log.Printf)) // 会打开浏览器并且新建一个标签页进行操作
 
-	ctx, _ = chromedp.NewRemoteAllocator(ctx, "ws://127.0.0.1:9221") //使用远程调试，可以结合下面的容器使用
+	ctx, _ = chromedp.NewRemoteAllocator(ctx, "ws://127.0.0.1:9222") //使用远程调试，可以结合下面的容器使用
 	//ctx, _ = chromedp.NewContext(ctx, chromedp.WithLogf(log.Printf), chromedp.WithTargetID("EA3271486ADC09ED0504F3C9FCEE698B")) // WithTargetID可以指定一个标签页进行操作
 	ctx, _ = chromedp.NewContext(ctx) // 新开WithTargetID
 
