@@ -123,7 +123,7 @@ func (this *DarkChainCheckSource) Execute(params map[string]string) (value inter
 		newUrlLock = &sync.Mutex{}
 		resLock    = &sync.Mutex{}
 		wg         = &sync.WaitGroup{}
-		chMax      = make(chan struct{}, 10)
+		chMax      = make(chan struct{}, 2) //浏览器窗口数
 	)
 LOOP:
 	newUrls, urlMap = []string{}, map[string]struct{}{} //重置

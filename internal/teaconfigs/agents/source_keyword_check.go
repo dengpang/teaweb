@@ -94,12 +94,12 @@ func (this *KeywordCheckSource) Execute(params map[string]string) (value interfa
 	html, err := chromeDpRun(this.URL)
 	if err != nil {
 		value = maps.Map{
-			"cost":     time.Since(before).Seconds(),
-			"status":   0,
-			"scanList": "",
-			"scanNum":  0,
-			"list":     make([]CheckRes, 0),
-			"number":   0,
+			"cost":       time.Since(before).Seconds(),
+			"status":     0,
+			"scanList":   "",
+			"scanNum":    0,
+			"keywords":   make([]CheckRes, 0),
+			"keywordNum": 0,
 		}
 		return value, err
 	}
@@ -120,7 +120,7 @@ func (this *KeywordCheckSource) Execute(params map[string]string) (value interfa
 		newUrlLock = &sync.Mutex{}
 		resLock    = &sync.Mutex{}
 		wg         = &sync.WaitGroup{}
-		chMax      = make(chan struct{}, 10)
+		chMax      = make(chan struct{}, 2) //浏览器窗口数
 	)
 LOOP:
 	newUrls, urlMap = []string{}, map[string]struct{}{} //重置
@@ -506,6 +506,9 @@ func (this *KeywordCheckSource) MatchKeyword(url string, s []byte) (ok bool, key
 	if len(this.KeywordList) > 0 {
 		//regexp.Compile(`\\\^\$\*\+\?\{\}\.\[\]\(\)\-\|`)
 		for _, reg_rule := range this.KeywordList {
+			if reg_rule == "" {
+				continue
+			}
 			reg := regexp.MustCompile(reg_rule)
 			if reg.Match(s) {
 				keyword[Md5Str(url+reg_rule)] = CheckRes{
