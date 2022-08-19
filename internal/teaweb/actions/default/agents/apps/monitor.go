@@ -5,8 +5,8 @@ import (
 	"github.com/TeaWeb/build/internal/teaconfigs/agents"
 	"github.com/TeaWeb/build/internal/teaconfigs/notices"
 	"github.com/TeaWeb/build/internal/teadb"
+	"github.com/TeaWeb/build/internal/teaweb/actions/default/actionutils"
 	"github.com/TeaWeb/build/internal/teaweb/actions/default/agents/agentutils"
-	"github.com/iwind/TeaGo/actions"
 	"github.com/iwind/TeaGo/lists"
 	"github.com/iwind/TeaGo/logs"
 	"github.com/iwind/TeaGo/maps"
@@ -14,7 +14,9 @@ import (
 	"time"
 )
 
-type MonitorAction actions.Action
+type MonitorAction struct {
+	actionutils.ParentAction
+}
 
 // 监控
 func (this *MonitorAction) Run(params struct {
@@ -28,9 +30,20 @@ func (this *MonitorAction) Run(params struct {
 	}
 
 	m := this.Data["app"].(maps.Map)
-	m["items"] = app.Items
 
 	this.Data["noticeLevels"] = notices.AllNoticeLevels()
+
+	page := this.NewPage(int64(len(app.Items)))
+	end := page.Offset + page.Size
+	if page.Offset > int64(len(app.Items)) {
+		page.Offset = 0
+	}
+	if end > int64(len(app.Items)) {
+		end = int64(len(app.Items))
+	}
+	this.Data["page"] = page.AsHTML()
+
+	m["items"] = app.Items[page.Offset:end]
 
 	this.Show()
 }
@@ -49,8 +62,16 @@ func (this *MonitorAction) RunPost(params struct {
 	if app == nil {
 		this.Fail("找不到App")
 	}
-
-	this.Data["items"] = lists.Map(app.Items, func(k int, v interface{}) interface{} {
+	page := this.NewPage(int64(len(app.Items)))
+	end := page.Offset + page.Size
+	if page.Offset > int64(len(app.Items)) {
+		page.Offset = 0
+	}
+	if end > int64(len(app.Items)) {
+		end = int64(len(app.Items))
+	}
+	this.Data["page"] = page.AsHTML()
+	this.Data["items"] = lists.Map(app.Items[page.Offset:end], func(k int, v interface{}) interface{} {
 		item := v.(*agents.Item)
 
 		latestValue := ""

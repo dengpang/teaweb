@@ -4,44 +4,42 @@ import (
 	"github.com/TeaWeb/build/internal/teaconfigs/audits"
 	"github.com/TeaWeb/build/internal/teadb"
 	"github.com/TeaWeb/build/internal/teageo"
-	"github.com/iwind/TeaGo/actions"
+	"github.com/TeaWeb/build/internal/teaweb/actions/default/actionutils"
 	"github.com/iwind/TeaGo/lists"
 	"github.com/iwind/TeaGo/logs"
 	"github.com/iwind/TeaGo/maps"
 	"github.com/iwind/TeaGo/utils/time"
-	"math"
 	"net"
 	"strings"
 	"time"
 )
 
-type AuditAction actions.Action
+type AuditAction struct {
+	actionutils.ParentAction
+}
 
 // 审计日志
 func (this *AuditAction) Run(params struct {
 	Read int
-	Page int
 }) {
-	// 分页
-	if params.Page < 1 {
-		params.Page = 1
-	}
-	pageSize := 10
-	this.Data["page"] = params.Page
-
 	count, err := teadb.AuditLogDAO().CountAllAuditLogs()
 	if err != nil {
 		logs.Error(err)
 	}
 
-	if count > 0 {
-		this.Data["countPages"] = int(math.Ceil(float64(count) / float64(pageSize)))
-	} else {
-		this.Data["countPages"] = 0
+	// 分页
+	page := this.NewPage(count)
+	end := page.Offset + page.Size
+	if page.Offset > count {
+		page.Offset = 0
 	}
+	if end > count {
+		end = count
+	}
+	this.Data["page"] = page.AsHTML()
 
 	// 读取列表数据
-	ones, err := teadb.AuditLogDAO().ListAuditLogs(pageSize*(params.Page-1), pageSize)
+	ones, err := teadb.AuditLogDAO().ListAuditLogs(int(page.Offset), int(page.Size))
 	if err != nil {
 		this.Data["logs"] = []interface{}{}
 	} else {

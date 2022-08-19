@@ -7,6 +7,7 @@ import (
 	"github.com/iwind/TeaGo/logs"
 	"net/http"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 )
@@ -108,37 +109,26 @@ func TestReg(t *testing.T) {
 }
 
 func TestMatchUrl(t *testing.T) {
-	s := `<div class="xe-widget xe-conversations box2 label-info" onclick="window.open('https://dribbble.com/', '_blank')" data-toggle="tooltip" data-placement="bottom" title="" data-original-title="https://dribbble.com/">
-                        <div class="xe-comment-entry">
-                            <a class="xe-user-img">
-                                <img data-src="../assets/images/logos/dribbble.png" class="lozad img-circle" width="40" src="../assets/images/logos/dribbble.png" data-loaded="true">
-                            </a>
-                            <div class="xe-comment">
-                                <a href="#" class="xe-user-name overflowClip_1">
-                                    <strong>Dribbble</strong>
-                                </a>
-                                <p class="overflowClip_2">全球UI设计师作品分享平台。</p>
-                            </div>
-                        </div>
-                    </div>`
-	key := &KeywordCheckSource{}
-	list := key.MatchUrl([]byte(s))
-	fmt.Println(list)
+	//s := `<div class="xe-widget xe-conversations box2 label-info" onclick="window.open('https://dribbble.com/', '_blank')" data-toggle="tooltip" data-placement="bottom" title="" data-original-title="https://dribbble.com/">
+	//                    <div class="xe-comment-entry">
+	//                        <a class="xe-user-img">
+	//                            <img data-src="../assets/images/logos/dribbble.png" class="lozad img-circle" width="40" src="../assets/images/logos/dribbble.png" data-loaded="true">
+	//                        </a>
+	//                        <div class="xe-comment">
+	//                            <a href="#" class="xe-user-name overflowClip_1">
+	//                                <strong>Dribbble</strong>
+	//                            </a>
+	//                            <p class="overflowClip_2">全球UI设计师作品分享平台。</p>
+	//                        </div>
+	//                    </div>
+	//                </div>`
+	//key := &KeywordCheckSource{}
+	//list := key.MatchUrl([]byte(s))
+	//fmt.Println(list)
 }
 
 func Test_re(t *testing.T) {
-	//4、正则替换
-	//通过函数进行替换
-	data := `https://wan.baidu.com/cover?gameId=24931775\u0026amp;d=文化大革命***&idfrom=4084`
-	re3, e := regexp.Compile(`[\?\*]`)
-	fmt.Println(e)
-	//re3, _ := regexp.Compile(`\\u0026amp\;`) // &符号
-	//re3, _ := regexp.Compile(`('|")[^\s]+$`);
-	rep2 := re3.ReplaceAllStringFunc(data, func(b string) string {
-		fmt.Println(b)
-		return "\\" + b
-	})
-	fmt.Println(rep2)
+
 	keywordsStr := "戴秉国,黄镇,刘延东,刘瑞龙,俞正声,黄敬,薄熙,薄一波,周小川,周建南,温云松,徐明,江泽慧,江绵恒,江绵康,李小鹏,李鹏,李小琳,朱云来,朱容基,让国人愤怒的第二代身份证,第二代身份证,文化大革命***,胡海峰,六四,反共,共产党,陈良宇,老丁,莱仕德事件***,fuck,地下的先烈们纷纷打来电话询问*,李洪志,大纪元,真善忍,新唐人,肉棍,淫靡,淫水,六四事件,迷昏药,迷魂药,窃听器,六合彩,买卖枪支,三唑仑,麻醉药,麻醉乙醚,短信群发器"
 	reg, _ := regexp.Compile(`[\\\^\$\*\+\?\{\}\.\[\]\(\)\-\|]`)
 	keywordsStr = reg.ReplaceAllStringFunc(keywordsStr, func(b string) string {
@@ -146,4 +136,17 @@ func Test_re(t *testing.T) {
 		return `\` + b
 	})
 	fmt.Println(keywordsStr)
+	//regx := regexp.MustCompile("文化大革命\\*\\*\\*s")
+	//if regx.MatchString("fkdsjfWE那壶文化大革命***s返回黄金时代") {
+	//	fmt.Println("有")
+	//} else {
+	//	fmt.Println("没有")
+	//}
+	key := `文化大革命\*\*\*\\`
+	keys := reg.ReplaceAllStringFunc(key, func(b string) string {
+		//正则 元字符需要转义
+		fmt.Println(b)
+		return strings.TrimPrefix(b, `\`)
+	})
+	fmt.Println(keys)
 }

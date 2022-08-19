@@ -169,3 +169,17 @@ Tea.context(function () {
 window.NotifyPopup = function (resp) {
 	window.parent.teaweb.popupFinish(resp);
 };
+
+window.ChangePageSize = function (size) {
+	let url = window.location.toString();
+	if (url.indexOf("pageSize") > 0) {
+		url = url.replace(/pageSize=\d+/g, "pageSize=" + size);
+	} else {
+		if (url.indexOf("?") > 0) {
+			url += "&pageSize=" + size;
+		} else {
+			url += "?pageSize=" + size;
+		}
+	}
+	window.location = url;
+};

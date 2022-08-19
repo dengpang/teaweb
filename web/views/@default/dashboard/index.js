@@ -54,7 +54,6 @@ Tea.context(function () {
 					v.requestTime = Math.floor(v.requestTime * 1000000) / 1000;
 					return v;
 				});
-
 				this.renderQPS(resp.data.qps);
 
 				this.logsVisible = true;
@@ -82,6 +81,9 @@ Tea.context(function () {
 	var lastQPSMax = 0;
 	this.renderQPS = function (qps) {
 		var chartBox = document.getElementById("qps-chart-box");
+		if (chartBox == null){
+			return;
+		}
 		var chart = echarts.init(chartBox);
 		var max = 10000;
 		if (qps < 100) {

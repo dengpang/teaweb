@@ -46,6 +46,7 @@ func RegisterAllDataSources() {
 	RegisterDataSource(NewNginxStatusSource(), SourceCategoryCommon)
 	RegisterDataSource(NewDarkChainCheckSource(), SourceCategoryCommon)
 	RegisterDataSource(NewKeywordCheckSource(), SourceCategoryCommon)
+	RegisterDataSource(NewHangingHouseCheckSource(), SourceCategoryCommon)
 
 	// plugin
 }

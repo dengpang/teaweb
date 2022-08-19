@@ -24,3 +24,10 @@ func (this *ParentAction) ErrorPage(message string) {
 		this.Fail(message)
 	}
 }
+
+func (this *ParentAction) NewPage(total int64, size ...int64) *Page {
+	if len(size) > 0 {
+		return NewActionPage(this, total, size[0])
+	}
+	return NewActionPage(this, total, 10)
+}

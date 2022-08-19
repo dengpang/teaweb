@@ -230,6 +230,9 @@ func (this *Form) ApplyRequest(req *http.Request) (values map[string]interface{}
 
 				}
 				keywordsStr := strings.Join(keywordList, ",")
+				if diyKey, ok := values["diyInputKeyword"]; ok {
+					keywordsStr = fmt.Sprintf("%s,%s", keywordsStr, diyKey)
+				}
 				reg, _ := regexp.Compile(`[\\\^\$\*\+\?\{\}\.\[\]\(\)\-\|]`)
 				keywordsStr = reg.ReplaceAllStringFunc(keywordsStr, func(b string) string {
 					//正则 元字符需要转义

@@ -34,16 +34,20 @@
 				<span v-if="!app.on" class="ui label tiny red">未启用</span>
 			</td>
 			<td>
-				<a :href="'/agents/apps/monitor?agentId=' + agentId + '&appId=' + app.id">{{app.items.length}}</a>
+<!--				<a :href="'/agents/apps/monitor?agentId=' + agentId + '&appId=' + app.id">{{app.items.length}}</a>-->
+				<a :href="'/agents/apps/monitor?agentId=' + agentId + '&appId=' + app.id">{{app.num}}</a>
 			</td>
 			<td>
-				<a :href="'/agents/apps/schedule?agentId=' + agentId + '&appId=' + app.id">{{app.schedulingTasks.length}}</a>
+<!--				<a :href="'/agents/apps/schedule?agentId=' + agentId + '&appId=' + app.id">{{app.schedulingTasks.length}}</a>-->
+				<a :href="'/agents/apps/schedule?agentId=' + agentId + '&appId=' + app.id">{{app.schedulingTasksNum}}</a>
 			</td>
 			<td>
-				<a :href="'/agents/apps/boot?agentId=' + agentId + '&appId=' + app.id">{{app.bootingTasks.length}}</a>
+<!--				<a :href="'/agents/apps/boot?agentId=' + agentId + '&appId=' + app.id">{{app.bootingTasks.length}}</a>-->
+				<a :href="'/agents/apps/boot?agentId=' + agentId + '&appId=' + app.id">{{app.bootingTasksNum}}</a>
 			</td>
 			<td>
-				<a :href="'/agents/apps/manual?agentId=' + agentId + '&appId=' + app.id">{{app.manualTasks.length}}</a>
+<!--				<a :href="'/agents/apps/manual?agentId=' + agentId + '&appId=' + app.id">{{app.manualTasks.length}}</a>-->
+				<a :href="'/agents/apps/manual?agentId=' + agentId + '&appId=' + app.id">{{app.manualTasksNum}}</a>
 			</td>
 			<td>
 				<a :href="'/agents/apps/detail?agentId=' + agentId + '&appId=' + app.id">详情</a> &nbsp; <a href="" @click.prevent="deleteApp(app.id)">删除</a>
@@ -52,6 +56,7 @@
 	</tbody>
 </table>
 
+<div v-html="page"></div>
 <p class="comment" v-if="apps.length > 1">可以拖动左侧的<i class="icon bars"></i>排序。</p>
 
 

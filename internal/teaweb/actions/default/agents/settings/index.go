@@ -4,6 +4,7 @@ import (
 	"github.com/TeaWeb/build/internal/teaconfigs/agents"
 	"github.com/TeaWeb/build/internal/teaweb/actions/default/agents/agentutils"
 	"github.com/iwind/TeaGo/actions"
+	"github.com/iwind/TeaGo/maps"
 )
 
 type IndexAction actions.Action
@@ -32,7 +33,17 @@ func (this *IndexAction) Run(params struct {
 		this.Data["agentIP"] = ""
 		this.Data["agentIsWaiting"] = false
 	}
-	this.Data["agent"] = agent
+	//this.Data["agent"] = agent
+	this.Data["agent"] = maps.Map{
+		"id":                  agent.Id,
+		"on":                  agent.On,
+		"name":                agent.Name,
+		"host":                agent.Host,
+		"key":                 agent.Key,
+		"allowAll":            agent.AllowAll,
+		"checkDisconnections": agent.CheckDisconnections,
+		"autoUpdates":         agent.AutoUpdates,
+	}
 	this.Data["isLocal"] = agent.IsLocal()
 
 	// 分组

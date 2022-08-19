@@ -16,13 +16,13 @@ func (this *NoticeReceiversAction) Run(params struct {
 	AgentId string
 }) {
 	this.Data["selectedTab"] = "noticeSetting"
-
 	agent := agents.NewAgentConfigFromId(params.AgentId)
 	if agent == nil {
 		this.Fail("找不到Agent")
 	}
-	this.Data["agent"] = agent
-
+	this.Data["agent"] = maps.Map{
+		"id": agent.Id,
+	}
 	group := agent.FirstGroup()
 	this.Data["groupId"] = group.Id
 	this.Data["levels"] = lists.Map(notices.AllNoticeLevels(), func(k int, v interface{}) interface{} {
@@ -51,6 +51,5 @@ func (this *NoticeReceiversAction) Run(params struct {
 
 		return level
 	})
-
 	this.Show()
 }

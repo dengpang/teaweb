@@ -39,7 +39,6 @@ func (this *AddItemAction) RunPost(params struct {
 	KeywordCheckDiy string
 	Must            *actions.Must
 }) {
-	fmt.Println("agentId", params.AgentId)
 	if teaconst.DemoEnabled {
 		this.Fail("演示版无法添加监控项")
 	}

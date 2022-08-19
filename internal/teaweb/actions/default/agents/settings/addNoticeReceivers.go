@@ -20,7 +20,10 @@ func (this *AddNoticeReceiversAction) Run(params struct {
 	if agent == nil {
 		this.Fail("找不到Agent")
 	}
-	this.Data["agent"] = agent
+
+	this.Data["agent"] = maps.Map{
+		"id": agent.Id,
+	}
 
 	level := notices.FindNoticeLevel(params.Level)
 	if level == nil {

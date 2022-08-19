@@ -2,6 +2,7 @@ package apiutils
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/TeaWeb/build/internal/teaweb/configs"
 	"github.com/iwind/TeaGo/actions"
 	"github.com/iwind/TeaGo/maps"
@@ -36,6 +37,7 @@ func Success(actionPtr actions.ActionWrapper, data interface{}) {
 	if actionPtr.Object().HasParam("TeaPretty") {
 		dataBytes, err := json.MarshalIndent(data, "", "  ")
 		if err != nil {
+			fmt.Println("err1=", err)
 			Fail(actionPtr, err.Error())
 			return
 		}
@@ -43,6 +45,7 @@ func Success(actionPtr actions.ActionWrapper, data interface{}) {
 	} else {
 		dataBytes, err := ffjson.Marshal(data)
 		if err != nil {
+			fmt.Println("err2=", err)
 			Fail(actionPtr, err.Error())
 			return
 		}
