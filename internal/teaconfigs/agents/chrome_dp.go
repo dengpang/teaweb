@@ -9,8 +9,10 @@ import (
 	"log"
 	"net"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
@@ -36,6 +38,10 @@ var fontSize0Rex *regexp.Regexp
 var marqueeHeightRex *regexp.Regexp
 var marqueeWidthRex *regexp.Regexp
 
+var MaxWind = runtime.NumCPU()
+var TargeMap = &sync.Map{}
+var TargeLock = &sync.Mutex{}
+
 func init() {
 	documentReferrerRex, _ = regexp.Compile(`document\.referrer`)                                                                      //特殊关键词
 	indexOfRex, _ = regexp.Compile(`\.indexOf\(`)                                                                                      //特殊关键词
@@ -53,14 +59,27 @@ func init() {
 	fontSize0Rex, _ = regexp.Compile(`font-size\:\s{1,}0`)                                                                             //字体大小是0  标识
 	marqueeHeightRex, _ = regexp.Compile(`height="\d{1}"`)                                                                             //marquee标签高很小  标识
 	marqueeWidthRex, _ = regexp.Compile(`width="\d{1}"`)                                                                               //marquee标签宽很小  标识
+
+	//go func() {
+	//	for {
+	//		<- time.Tick(time.Second*3)
+	//		TargeMap.Range(func(k, v interface{}) bool {
+	//
+	//			fmt.Println(k,v)
+	//			return true
+	//		})
+	//		fmt.Println()
+	//	}
+	//
+	//}()
 }
 
 type (
 	ChromeDpEngine struct {
-		Context context.Context `json:"context"` //chromedp上下文信息
-		Url     string          `json:"url"`     //请求的第一个地址
-		Html    *string         `json:"html"`    //拿到的响应内容
-		//WithTargetID string          `json:"with_target_id"` //无头浏览器ID
+		Context      context.Context `json:"context"`        //chromedp上下文信息
+		Url          string          `json:"url"`            //请求的第一个地址
+		Html         *string         `json:"html"`           //拿到的响应内容
+		WithTargetID string          `json:"with_target_id"` //无头浏览器ID
 		//DoMainTop  string   `json:"do_main_top"` //顶级域名
 		//DoMain     string   `json:"do_main"`     //域名
 		//OnLevel    int      `json:"on_level"`    //当前等级 默认0 首页
@@ -77,7 +96,7 @@ type (
 
 //检查是否有9222端口，来判断是否运行在linux上
 func checkChromePort() bool {
-	addr := net.JoinHostPort("", "9222")
+	addr := net.JoinHostPort("127.0.0.1", "9222")
 	conn, err := net.DialTimeout("tcp", addr, 1*time.Second)
 	if err != nil {
 		return false
@@ -85,26 +104,39 @@ func checkChromePort() bool {
 	defer conn.Close()
 	return true
 }
-func chromeDpRun(url string) (html *string, err error) {
+
+//ctx 可复用
+func chromeDpRun(url string, ctx context.Context) (engine *ChromeDpEngine, html *string, err error) {
 	//url := "http://127.0.0.1"
-	engine := &ChromeDpEngine{
-		Context: newChromeDpCtx(),
-		Url:     url,
-		//DoMainTop: domainTop,
-		//DoMain:    domain,
+	engine = &ChromeDpEngine{
+		//Context: newChromeDpCtx(),
+		Url:  url,
 		Html: new(string),
-		//OnLevel:   0, Level: 1,
-		//UseRequest: sync.Map{},
-		//Urls:       sync.Map{},
 	}
-	if engine == nil {
-		return new(string), errors.New("chromeDp is nil")
-	}
-	defer func() {
-		if err := chromedp.Cancel(engine.Context); err != nil {
-			log.Println(err)
+	if ctx != nil {
+		engine.Context = ctx
+	} else {
+		engine.Context, engine.WithTargetID, err = newChromeDpCtx()
+		if err != nil {
+			for i := 0; i < 60; i++ { //重试60次，每次等待一分钟
+				fmt.Println("等待的url", url, err, time.Now())
+				<-time.Tick(time.Second * 10)
+				engine.Context, engine.WithTargetID, err = newChromeDpCtx()
+				if err == nil && engine.Context != nil {
+					break
+				}
+			}
 		}
-	}()
+		if engine.Context == nil {
+			return engine, new(string), errors.New("暂无空闲窗口")
+		}
+	}
+
+	//defer func() {
+	//	if err := chromedp.Cancel(engine.Context); err != nil {
+	//		log.Println(err)
+	//	}
+	//}()
 
 	/** 调试时可以加上，避免主动关闭进程但是浏览器还在执行
 	go func() {
@@ -118,15 +150,31 @@ func chromeDpRun(url string) (html *string, err error) {
 
 	if err := chromedp.Run(engine.Context, engine.newTask()); err != nil {
 		log.Println("执行失败：", err)
-		return new(string), err
+		return engine, new(string), err
 	}
-	return engine.Html, nil
+
+	return engine, engine.Html, nil
 	//fmt.Println(engine.Urls)
 	//fmt.Println(*engine.Html)
 }
+func (this *ChromeDpEngine) Close() {
+	chromedp.Cancel(this.Context)
+}
+func (this *ChromeDpEngine) UnLockTargetId() {
+	TargeLock.Lock()
+	defer TargeLock.Unlock()
+	//fmt.Println(this.WithTargetID,"解除占用")
+	TargeMap.Store(this.WithTargetID, false)
+
+	//TargeMap.Delete(this.WithTargetID)
+	//chromedp.Cancel(this.Context)
+}
 
 //获得一个chromdp的context
-func newChromeDpCtx() context.Context {
+func newChromeDpCtx() (ctx context.Context, targetId string, err error) {
+	TargeLock.Lock()
+	defer TargeLock.Unlock()
+
 	options := []chromedp.ExecAllocatorOption{
 		chromedp.Flag("headless", false), // debug使用false  正式使用用true
 		chromedp.WindowSize(1280, 1024),  // 调整浏览器大小
@@ -137,14 +185,71 @@ func newChromeDpCtx() context.Context {
 	options = append(options, chromedp.Flag("ignore-certificate-errors", true))       //忽略错误
 	options = append(options, chromedp.Flag("blink-settings", "imagesEnabled=false")) //不加载图片
 
-	ctx, _ := chromedp.NewExecAllocator(context.Background(), options...)
+	ctx, _ = chromedp.NewExecAllocator(context.Background(), options...)
 	ctx, _ = chromedp.NewContext(ctx, chromedp.WithLogf(log.Printf)) // 会打开浏览器并且新建一个标签页进行操作
 
 	ctx, _ = chromedp.NewRemoteAllocator(ctx, "ws://127.0.0.1:9222") //使用远程调试，可以结合下面的容器使用
+	//defer cancel()
 	//ctx, _ = chromedp.NewContext(ctx, chromedp.WithLogf(log.Printf), chromedp.WithTargetID("EA3271486ADC09ED0504F3C9FCEE698B")) // WithTargetID可以指定一个标签页进行操作
-	ctx, _ = chromedp.NewContext(ctx) // 新开WithTargetID
 
-	return ctx
+	newCtx, cancel := chromedp.NewContext(ctx) // 新开WithTargetID
+	if GetWindNum() < MaxWind {
+		chromedp.Run(newCtx)//chromedp.Navigate("http://www.baidu.com"),
+
+	}
+
+	//列出所有打开的窗口
+	targets, err := chromedp.Targets(newCtx)
+	if err != nil {
+		//fmt.Println("err=",err)
+		return nil, targetId, err
+	}
+
+	targetsNum := 0 //无头浏览器开启的有效窗口数
+
+	if num := GetWindNum(); num == 0 { //第一次使用，将已经打开的窗口写入全局map
+		for _, v := range targets {
+			//fmt.Println(*v)
+			if v.Type == "page" { //不是iframe标签
+				targetsNum++
+				if targetId == "" {
+					TargeMap.Store(string(v.TargetID), true)
+					targetId = string(v.TargetID)
+					ctx, _ = chromedp.NewContext(ctx, chromedp.WithTargetID(v.TargetID))
+					continue
+				} else {
+					TargeMap.Store(string(v.TargetID), false)
+				}
+			}
+
+		}
+	} else {
+		for _, v := range targets {
+			if v.Type == "page" {
+				targetsNum++
+				if value, ok := TargeMap.Load(string(v.TargetID)); ok {
+					if value == false && targetId == "" {
+						TargeMap.Store(string(v.TargetID), true)
+						targetId = string(v.TargetID)
+						ctx, _ = chromedp.NewContext(ctx, chromedp.WithTargetID(v.TargetID))
+					} else {
+						continue
+					}
+				} else {
+					TargeMap.Store(string(v.TargetID), false)
+				}
+			}
+
+		}
+	}
+	if targetsNum > MaxWind { //超过cpu核心数两倍的窗口数，将关闭当前窗口
+		defer cancel()
+	}
+	if targetId == "" {
+		return nil, targetId, errors.New("暂无空闲窗口")
+	}
+
+	return ctx, targetId, nil
 }
 
 //返回一个任务的列队来执行
@@ -312,11 +417,11 @@ func checkUrlDarkChain(selection *goquery.Selection) (ok bool) {
 			//todo 暗链=url
 			fmt.Println("positionAbsoluteRex true")
 		}
-		if whiteColorRex.MatchString(content) || whiteColorRex.MatchString(parentContent) {
-			return true
-			//todo 暗链=url
-			fmt.Println("whiteColorRex true")
-		}
+		//if whiteColorRex.MatchString(content) || whiteColorRex.MatchString(parentContent) {
+		//	return true
+		//	//todo 暗链=url
+		//	fmt.Println("whiteColorRex true")
+		//}
 		if fontSize0Rex.MatchString(content) || fontSize0Rex.MatchString(parentContent) {
 			return true
 			//todo 暗链=url
@@ -470,9 +575,9 @@ func checkIframeHangingHorse(html *string, pageUrl, doMainTop string) (ok bool, 
 				(positionAbsoluteRex.MatchString(parentContent) && (positionAbsoluteTopRex.MatchString(parentContent) || positionAbsoluteBottomRex.MatchString(parentContent) || positionAbsoluteRightRex.MatchString(parentContent) || positionAbsoluteLeftRex.MatchString(parentContent))) {
 				none = true
 			}
-			if whiteColorRex.MatchString(content) || whiteColorRex.MatchString(parentContent) {
-				none = true
-			}
+			//if whiteColorRex.MatchString(content) || whiteColorRex.MatchString(parentContent) {
+			//	none = true
+			//}
 			if fontSize0Rex.MatchString(content) || fontSize0Rex.MatchString(parentContent) {
 				none = true
 			}
@@ -561,4 +666,16 @@ func Md5Str(str string) string {
 	has := md5.Sum(data)
 	md5str := fmt.Sprintf("%x", has)
 	return md5str
+}
+
+//获取已打开窗口数量
+func GetWindNum() int {
+	// 循环遍历读取数据获取长度
+	len := 0
+	TargeMap.Range(func(k, v interface{}) bool {
+
+		len++
+		return true
+	})
+	return len
 }

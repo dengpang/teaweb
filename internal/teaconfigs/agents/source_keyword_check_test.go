@@ -7,7 +7,9 @@ import (
 	"github.com/iwind/TeaGo/logs"
 	"net/http"
 	"regexp"
+	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -149,4 +151,16 @@ func Test_re(t *testing.T) {
 		return strings.TrimPrefix(b, `\`)
 	})
 	fmt.Println(keys)
+}
+
+func Test_syncMap(t *testing.T) {
+	fmt.Println(runtime.NumCPU() / 2)
+	m := &sync.Map{}
+	m.Store("1", true)
+	m.Store("2", false)
+	if value, ok := m.Load("1"); ok {
+		if value == false {
+			fmt.Println("ok")
+		}
+	}
 }

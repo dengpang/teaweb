@@ -79,7 +79,8 @@ func (this *HangingHouseCheckSource) Execute(params map[string]string) (value in
 			"number":   0,
 		}, err
 	}
-	html, err := chromeDpRun(this.URL)
+	engine, html, err := chromeDpRun(this.URL, nil)
+	defer engine.UnLockTargetId()
 	if err != nil {
 		value = maps.Map{
 			"cost":     time.Since(before).Seconds(),
@@ -91,7 +92,6 @@ func (this *HangingHouseCheckSource) Execute(params map[string]string) (value in
 		}
 		return value, err
 	}
-
 	domainTop, domain := GetDomain(this.URL)
 	Urls, _, err := GetUrlsAndCheck(html, domainTop, domain, this.URL, 3)
 	//监测结果
@@ -108,7 +108,7 @@ func (this *HangingHouseCheckSource) Execute(params map[string]string) (value in
 		newUrlLock = &sync.Mutex{}
 		resLock    = &sync.Mutex{}
 		wg         = &sync.WaitGroup{}
-		chMax      = make(chan struct{}, 2) //浏览器窗口数
+		chMax      = make(chan struct{}, 1) //浏览器窗口数
 	)
 LOOP:
 	newUrls, urlMap = []string{}, map[string]struct{}{} //重置
@@ -140,7 +140,7 @@ LOOP:
 
 				//fmt.Println("url == ", v1, "level==", levelOn)
 
-				subHtml, err := chromeDpRun(v1)
+				_, subHtml, err := chromeDpRun(v1, engine.Context)
 				if err != nil {
 					return
 				}
