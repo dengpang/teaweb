@@ -80,12 +80,13 @@ func init() {
 			winMap := map[string]string{}
 			n := 0
 			for {
-				<-time.Tick(time.Minute * 5)
+				<-time.Tick(time.Second * 60)
 				winCtx := CTX
 				winCtx, _ = chromedp.NewContext(winCtx)
 				targets, err := chromedp.Targets(winCtx)
 				if err != nil {
-					fmt.Println("获取打开的窗口失败", err)
+					CTX, _ = chromedp.NewRemoteAllocator(CTX, "ws://127.0.0.1:9222") //使用远程调试，可以结合下面的容器使用
+					//fmt.Println("获取打开的窗口失败", err)
 					continue
 				}
 				for _, v := range targets {
