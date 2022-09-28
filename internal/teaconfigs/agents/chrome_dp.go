@@ -91,7 +91,7 @@ type (
 //检查是否有9222端口，来判断是否运行在linux上
 func checkChromePort() bool {
 	addr := net.JoinHostPort("127.0.0.1", "9222")
-	conn, err := net.DialTimeout("tcp", addr, 1*time.Second)
+	conn, err := net.DialTimeout("tcp", addr, 5*time.Second)
 	if err != nil {
 		return false
 	}

@@ -164,3 +164,16 @@ func Test_syncMap(t *testing.T) {
 		}
 	}
 }
+func Test_Run(t *testing.T) {
+	eng, html, err := chromeDpRun("http://www.baidu.com", nil)
+	fmt.Println(eng)
+	fmt.Println(html)
+	fmt.Println(err)
+	time.Sleep(time.Second * 10)
+	eng, html, err = chromeDpRun("http://www.sougou.com", eng.Context)
+	fmt.Println(eng)
+	fmt.Println(html)
+	fmt.Println(err)
+	time.Sleep(time.Second * 10)
+	eng.Close()
+}

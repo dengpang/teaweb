@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/chromedp/chromedp"
 	"log"
+	"regexp"
 	"testing"
 	"time"
 )
@@ -101,4 +102,14 @@ func Test_run4(t *testing.T) {
 
 	//chromedp.Cancel(ctx)
 	time.Sleep(time.Second * 10)
+}
+
+func Test_reg1(t *testing.T) {
+	content := `var search=document.referrer;
+if(search.indexOf("baidu")>0 || search.indexOf("so")>0 || searchindexOf.("soso")>0 || search.indexOf("google")>0 || search.indexOf("youdao")>0 || search.indexOf("sougou")>0){
+        self.location.href="https://www.baidu.com"
+}`
+	locationHrefRex, _ = regexp.Compile(`(window\.l|l|self\.l|this\.l)ocation\.href`)
+	r := locationHrefRex.MatchString(content)
+	fmt.Println(r)
 }

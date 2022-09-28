@@ -102,9 +102,15 @@ func (this *DarkChainCheckSource) Execute(params map[string]string) (value inter
 		return value, err
 	}
 	domainTop, domain := GetDomain(this.URL)
-	Urls, dark_res, err := GetUrlsAndCheck(html, domainTop, domain, this.URL, 2)
 	//监测结果
 	checkRes := map[string]CheckRes{}
+	//script标签和其他标签 进行暗链可疑监测
+	if ok, res := checkScriptDarkChain(html, domain, domainTop); ok && len(res) > 0 {
+		for k, v := range res {
+			checkRes[k] = v
+		}
+	}
+	Urls, dark_res, err := GetUrlsAndCheck(html, domainTop, domain, this.URL, 2)
 	if len(dark_res) > 0 {
 		//url中可疑暗链
 		for k, v := range dark_res {
