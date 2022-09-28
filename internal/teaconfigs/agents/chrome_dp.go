@@ -74,6 +74,46 @@ func init() {
 	CTX, _ = chromedp.NewExecAllocator(context.Background(), options...)
 	CTX, _ = chromedp.NewRemoteAllocator(CTX, "ws://127.0.0.1:9222") //使用远程调试，可以结合下面的容器使用
 
+	//窗口自检 定时关闭因为打开网页失败而导致无法关闭的网页
+	if CTX != nil {
+		go func() {
+			winMap := map[string]string{}
+			n := 0
+			for {
+				<-time.Tick(time.Minute * 5)
+				winCtx := CTX
+				winCtx, _ = chromedp.NewContext(winCtx)
+				targets, err := chromedp.Targets(winCtx)
+				if err != nil {
+					fmt.Println("获取打开的窗口失败", err)
+					continue
+				}
+				for _, v := range targets {
+					//fmt.Println(*v)
+					if v.Type == "page" { //不是iframe标签
+						if value, ok := winMap[string(v.TargetID)]; ok && value == Md5Str(v.URL+v.Title) {
+							//页面tital和url地址没有变化，关闭此窗口
+							free, _ := chromedp.NewContext(winCtx, chromedp.WithTargetID(v.TargetID))
+							chromedp.Run(free, chromedp.Navigate(`chrome://newtab/`))
+							chromedp.Cancel(free)
+							time.Sleep(time.Second * 1)
+							delete(winMap, string(v.TargetID))
+						} else {
+							winMap[string(v.TargetID)] = Md5Str(v.URL + v.Title)
+						}
+
+					}
+
+				}
+				chromedp.Cancel(winCtx)
+				if n > 0 && n/10 == 0 { //10次循环清空一次map
+					winMap = map[string]string{}
+					n = 0
+				}
+			}
+		}()
+
+	}
 }
 
 type (
@@ -155,11 +195,14 @@ func (this *ChromeDpEngine) Close() {
 	chromedp.Cancel(this.Context)
 }
 func (this *ChromeDpEngine) UnLockTargetId() {
-	TargeLock.Lock()
-	defer TargeLock.Unlock()
-	//fmt.Println(this.WithTargetID,"解除占用")
-	WindNum -= 1
-	chromedp.Cancel(this.Context)
+	//fmt.Println(this.Url,this.Context,"解除占用")
+	if this.Context != nil {
+		TargeLock.Lock()
+		defer TargeLock.Unlock()
+		WindNum -= 1
+		chromedp.Cancel(this.Context)
+	}
+
 }
 
 //获得一个chromdp的context
