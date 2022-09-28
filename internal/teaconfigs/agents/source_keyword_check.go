@@ -92,7 +92,6 @@ func (this *KeywordCheckSource) Execute(params map[string]string) (value interfa
 		}, err
 	}
 	engine, html, err := chromeDpRun(this.URL, nil)
-	defer engine.UnLockTargetId()
 	if err != nil {
 		value = maps.Map{
 			"cost":       time.Since(before).Seconds(),
@@ -104,6 +103,7 @@ func (this *KeywordCheckSource) Execute(params map[string]string) (value interfa
 		}
 		return value, err
 	}
+	defer engine.UnLockTargetId()
 	domainTop, domain := GetDomain(this.URL)
 	Urls, _, err := GetUrlsAndCheck(html, domainTop, domain, this.URL, 1)
 	//监测结果
