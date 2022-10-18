@@ -24,6 +24,7 @@ require (
 	github.com/aliyun/alibaba-cloud-sdk-go v1.61.411
 	github.com/aws/aws-sdk-go v1.29.15
 	github.com/cenkalti/backoff v2.2.1+incompatible
+	github.com/chromedp/cdproto v0.0.0-20220515234810-83d799542a04
 	github.com/chromedp/chromedp v0.8.2
 	github.com/cloudflare/cloudflare-go v0.13.0
 	github.com/cpu/goacmedns v0.0.3

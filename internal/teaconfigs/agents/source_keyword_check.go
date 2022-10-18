@@ -104,10 +104,16 @@ func (this *KeywordCheckSource) Execute(params map[string]string) (value interfa
 		}
 		return value, err
 	}
-	domainTop, domain := GetDomain(this.URL)
-	Urls, _, err := GetUrlsAndCheck(html, domainTop, domain, this.URL, 1)
 	//监测结果
 	checkRes := map[string]CheckRes{}
+	if ok, res := this.MatchKeyword(this.URL, []byte(*html)); ok && len(res) > 0 {
+		for k, v := range res {
+			checkRes[k] = v
+		}
+	}
+	fmt.Println("html=", *html)
+	domainTop, domain := GetDomain(this.URL)
+	Urls, _, err := GetUrlsAndCheck(html, domainTop, domain, this.URL, 1)
 	//已经请求过的url
 	urlExistsMap := map[string]struct{}{
 		this.URL: {},

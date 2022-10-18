@@ -96,6 +96,11 @@ func (this *HangingHouseCheckSource) Execute(params map[string]string) (value in
 	Urls, _, err := GetUrlsAndCheck(html, domainTop, domain, this.URL, 3)
 	//监测结果
 	checkRes := map[string]CheckRes{}
+	if ok, res := checkIframeHangingHorse(html, this.URL, domainTop); ok && len(res) > 0 {
+		for k, v := range res {
+			checkRes[k] = v
+		}
+	}
 	//已经请求过的url
 	urlExistsMap := map[string]struct{}{
 		this.URL: {},

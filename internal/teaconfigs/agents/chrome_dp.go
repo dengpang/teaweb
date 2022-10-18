@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	"errors"
 	"fmt"
+	"github.com/chromedp/cdproto/cdp"
 	"io/ioutil"
 	"log"
 	"net"
@@ -70,6 +71,7 @@ func init() {
 	options = append(options, chromedp.DisableGPU)
 	options = append(options, chromedp.Flag("ignore-certificate-errors", true))       //忽略错误
 	options = append(options, chromedp.Flag("blink-settings", "imagesEnabled=false")) //不加载图片
+	options = append(options, chromedp.Flag("disable-web-security", true))            //禁用安全标识
 	//var cancel context.CancelFunc
 	CTX, _ = chromedp.NewExecAllocator(context.Background(), options...)
 	CTX, _ = chromedp.NewRemoteAllocator(CTX, "ws://127.0.0.1:9222") //使用远程调试，可以结合下面的容器使用
@@ -122,6 +124,7 @@ type (
 		Context context.Context `json:"context"` //chromedp上下文信息
 		Url     string          `json:"url"`     //请求的第一个地址
 		Html    *string         `json:"html"`    //拿到的响应内容
+		Iframe  bool            `json:"iframe"`  //专门获取iframe标签的内容的窗口
 	}
 	CheckRes struct {
 		Url   string `json:"url"`   //页面地址
@@ -242,6 +245,8 @@ func newChromeDpCtx() (ctx context.Context, err error) {
 func (this *ChromeDpEngine) newTask() chromedp.Tasks {
 	return chromedp.Tasks{
 		this.toUrl("打开首页", this.Url),
+		//chromedp.Sleep(time.Second * 10),
+		//chromedp.WaitReady(`iframe`, chromedp.ByQuery),
 		this.getHtml("获取页面元素", this.Html),
 
 		//this.setValue("填写用户名", "//*[@id=\"app\"]/div/div/div[2]/form/div[1]/input", "******"),
@@ -284,7 +289,12 @@ func (this *ChromeDpEngine) toUrl(name, url string) chromedp.ActionFunc {
 		ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 		defer cancel()
 		//chromedp.Sleep(3 * time.Second).Do(ctx)
-		return chromedp.Navigate(url).Do(ctx)
+		err = chromedp.Navigate(url).Do(ctx)
+		if err != nil {
+			return err
+		}
+
+		return nil
 	}
 }
 
@@ -294,12 +304,57 @@ func (this *ChromeDpEngine) getHtml(name string, html *string) chromedp.ActionFu
 		defer this.handleActionError(name, &err)
 		timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
-		//if chromedp.WaitVisible("body").Do(timeout) != nil {
-		//	return timeOutError
+
+		//if !this.Iframe {
+		//	iframeHtml := ""
+		//	//chromedp.EvaluateAsDevTools(`document.getElementById('iframe').contentWindow.document.body.outerHTML;`, &iframeHtml).Do(timeout)
+		//	chromedp.OuterHTML(`document.querySelectorAll("iframe")[0]`, &iframeHtml, chromedp.ByJSPath).Do(timeout)
+		//
+		//	fmt.Println("iframeHtml===================================================================")
+		//	fmt.Println(string(iframeHtml))
 		//}
-		err = chromedp.OuterHTML("html", html, chromedp.ByQuery).Do(timeout)
-		//解析网页内的地址
-		//this.GetUrlsAndCheck()
+
+		if !this.Iframe {
+			_, domain := GetDomain(this.Url)
+			var iframes []*cdp.Node
+			chromedp.Nodes("iframe", &iframes, chromedp.ByQuery).Do(timeout)
+			fmt.Println(iframes)
+			if len(iframes) > 0 {
+				ifHtml := ""
+				iframeWin, _ := chromedp.NewContext(CTX, chromedp.WithLogf(log.Printf))
+				defer chromedp.Cancel(iframeWin)
+				for _, v := range iframes {
+					if src, ok := v.Attribute("src"); ok {
+						src = strings.TrimPrefix(src, " ")
+						ifUrl := GetIframeUrl(src, domain)
+						//fmt.Println(src)
+						//fmt.Println(ifUrl)
+						ifEngine := &ChromeDpEngine{
+							Context: iframeWin,
+							Url:     ifUrl,
+							Html:    new(string),
+							Iframe:  true,
+						}
+						if err := chromedp.Run(ifEngine.Context, ifEngine.newTask()); err != nil {
+							log.Println("执行失败：", err)
+							return err
+						} else {
+							//fmt.Println(*ifEngine.Html)
+							//e := chromedp.EvaluateAsDevTools(`document.querySelectorAll("iframe")[`+strconv.Itoa(k)+`].innerHTML="`+urlpkg.QueryEscape(*ifEngine.Html)+`"`, "").Do(timeout)
+							//fmt.Println("e=======", e)
+							ifHtml += *ifEngine.Html + "\n"
+						}
+						err = chromedp.OuterHTML("html", html, chromedp.ByQuery).Do(timeout)
+						//*html, _ = urlpkg.QueryUnescape(*html)
+						*html = *html + ifHtml
+					}
+				}
+			}
+
+		} else {
+			err = chromedp.OuterHTML("html", html, chromedp.ByQuery).Do(timeout)
+
+		}
 
 		return err
 	}
@@ -325,6 +380,21 @@ func (this *ChromeDpEngine) screenShot(name string, path string) chromedp.Action
 	}
 }
 
+//获取iframe地址
+func GetIframeUrl(url, domain string) string {
+	//检测字符串是否以指定的前缀开头。
+	if strings.HasPrefix(url, "https://") || strings.HasPrefix(url, "http://") {
+		return url
+	}
+	//删除左边的前缀 .. 或者 .
+	url = strings.TrimPrefix(url, "..")
+	url = strings.TrimPrefix(url, ".")
+	if strings.HasPrefix(url, "/") {
+		return domain + url
+	}
+	return domain + "/" + url
+}
+
 //同域名的子url 如果是暗链，则需要判断url是否是暗链  checkType 1敏感词 2暗链  3挂马
 func GetUrlsAndCheck(html *string, doMainTop, doMain, pageUrl string, checkType int) (urls []string, dark_chain map[string]CheckRes, err error) {
 	urls, dark_chain = []string{}, make(map[string]CheckRes, 0)
@@ -335,6 +405,8 @@ func GetUrlsAndCheck(html *string, doMainTop, doMain, pageUrl string, checkType 
 
 	dom.Find("a").Each(func(i int, selection *goquery.Selection) {
 		if url, ok := selection.Attr("href"); ok {
+			url = strings.TrimPrefix(url, " ")
+
 			//fmt.Println(url)
 			//检测字符串是否以指定的前缀开头。
 			if strings.HasPrefix(url, "//") {
@@ -431,6 +503,7 @@ func checkScriptDarkChain(html *string, pageUrl, doMainTop string) (ok bool, dar
 		srcUrl := ""
 		if url, ok := selection.Attr("src"); ok {
 			//fmt.Println("script src==", url)
+			url = strings.TrimPrefix(url, " ")
 			srcUrl = url
 		}
 		if documentReferrerRex.MatchString(content) && indexOfRex.MatchString(content) && locationHrefRex.MatchString(content) {
@@ -519,7 +592,7 @@ func checkScriptDarkChain(html *string, pageUrl, doMainTop string) (ok bool, dar
 		aUrl := ""
 		ok := false
 		aUrl, ok = selection.Attr("href")
-		if ok {
+		if !ok {
 			return
 		}
 		if aUrl != "" { //mate标签内有url 判断mate是有有 http-equiv属性
@@ -594,7 +667,7 @@ func checkIframeHangingHorse(html *string, pageUrl, doMainTop string) (ok bool, 
 		if none {
 			srcUrl := ""
 			if url, ok := selection.Attr("src"); ok {
-				//fmt.Println("script src==", url)
+				url = strings.TrimPrefix(url, " ")
 				srcUrl = url
 			}
 			//fmt.Println("srcUrl==", srcUrl)
