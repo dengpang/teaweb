@@ -4,14 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/TeaWeb/build/internal/teaconfigs/forms"
 	"github.com/TeaWeb/build/internal/teaconfigs/notices"
 	"github.com/TeaWeb/build/internal/teautils"
 	"github.com/iwind/TeaGo/maps"
 	"io/ioutil"
 	"net/http"
-	"regexp"
 	"strconv"
 	"time"
 )
@@ -31,12 +29,12 @@ func NewIcpCheckSource() *IcpCheckSource {
 
 // 名称
 func (this *IcpCheckSource) Name() string {
-	return "icp_check"
+	return "备案检测"
 }
 
 // 代号
 func (this *IcpCheckSource) Code() string {
-	return "icp_check"
+	return "icpCheck"
 }
 
 // 描述
@@ -46,19 +44,21 @@ func (this *IcpCheckSource) Description() string {
 
 // 执行
 func (this *IcpCheckSource) Execute(params map[string]string) (value interface{}, err error) {
-	host := this.Domain
+	//host := this.Domain
 
 	// 去除http|https|ftp
-	host = regexp.MustCompile(`^(?i)(http|https|ftp)://`).ReplaceAllLiteralString(host, "")
-
-	if len(host) == 0 {
+	//host = regexp.MustCompile(`^(?i)(http|https|ftp)://`).ReplaceAllLiteralString(host, "")
+	this.Domain, _ = GetDomain(this.Domain)
+	if len(this.Domain) == 0 {
 		err = errors.New("'host' should not be empty")
 		return maps.Map{
-			"rtt": -1,
+			"ok":       false,
+			"unitName": "",
+			"icp":      "",
 		}, err
 	}
-	this.posticp(this.Domain)
-	return
+
+	return this.posticp()
 }
 
 // 表单信息
@@ -130,13 +130,13 @@ func (this *IcpCheckSource) Presentation() *forms.Presentation {
 	return p
 }
 
-func (this *IcpCheckSource) posticp(host string) (value interface{}, err error) {
+func (this *IcpCheckSource) posticp() (value interface{}, err error) {
 	value = maps.Map{
 		"icp":      "",
 		"unitName": "",
 		"ok":       false,
 	}
-	fmt.Println(this.Domain)
+	//fmt.Println(this.Domain)
 	token, err := this.getToken()
 	if err != nil {
 		return value, err

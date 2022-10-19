@@ -48,7 +48,9 @@ func RegisterAllDataSources() {
 	RegisterDataSource(NewKeywordCheckSource(), SourceCategoryCommon)
 	RegisterDataSource(NewHangingHouseCheckSource(), SourceCategoryCommon)
 
-	// plugin
+	RegisterDataSource(NewIcpCheckSource(), SourceCategoryCommon)
+
+	// plugin8
 }
 
 // 单个数据源信息

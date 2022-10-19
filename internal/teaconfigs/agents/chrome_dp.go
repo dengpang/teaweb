@@ -63,8 +63,8 @@ func init() {
 	marqueeWidthRex, _ = regexp.Compile(`width="\d{1}"`)                                                                               //marquee标签宽很小  标识
 
 	options := []chromedp.ExecAllocatorOption{
-		chromedp.Flag("headless", false), // debug使用false  正式使用用true
-		chromedp.WindowSize(1280, 1024),  // 调整浏览器大小
+		chromedp.Flag("headless", true), // debug使用false  正式使用用true
+		chromedp.WindowSize(1280, 1024), // 调整浏览器大小
 	}
 	options = append(chromedp.DefaultExecAllocatorOptions[:], options...)
 	options = append(options, chromedp.UserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.82 Safari/537.36"))
@@ -123,7 +123,7 @@ type (
 	ChromeDpEngine struct {
 		Context context.Context `json:"context"` //chromedp上下文信息
 		Url     string          `json:"url"`     //请求的第一个地址
-		Html    *string         `json:"html"`    //拿到的响应内容
+		Html    []*string       `json:"html"`    //拿到的响应内容
 		Iframe  bool            `json:"iframe"`  //专门获取iframe标签的内容的窗口
 	}
 	CheckRes struct {
@@ -144,12 +144,12 @@ func checkChromePort() bool {
 }
 
 //ctx 可复用
-func chromeDpRun(url string, ctx context.Context) (engine *ChromeDpEngine, html *string, err error) {
+func chromeDpRun(url string, ctx context.Context) (engine *ChromeDpEngine, html []*string, err error) {
 	//url := "http://127.0.0.1"
 	engine = &ChromeDpEngine{
 		//Context: newChromeDpCtx(),
 		Url:  url,
-		Html: new(string),
+		Html: make([]*string, 0),
 	}
 	if ctx != nil {
 		engine.Context = ctx
@@ -166,7 +166,7 @@ func chromeDpRun(url string, ctx context.Context) (engine *ChromeDpEngine, html 
 			}
 		}
 		if engine.Context == nil {
-			return engine, new(string), errors.New("暂无空闲窗口")
+			return engine, make([]*string, 0), errors.New("暂无空闲窗口")
 		}
 	}
 
@@ -185,10 +185,10 @@ func chromeDpRun(url string, ctx context.Context) (engine *ChromeDpEngine, html 
 		os.Exit(1)
 	}()
 	*/
-
+	fmt.Println("run")
 	if err := chromedp.Run(engine.Context, engine.newTask()); err != nil {
 		log.Println("执行失败：", err)
-		return engine, new(string), err
+		return engine, make([]*string, 0), err
 	}
 
 	return engine, engine.Html, nil
@@ -247,7 +247,7 @@ func (this *ChromeDpEngine) newTask() chromedp.Tasks {
 		this.toUrl("打开首页", this.Url),
 		//chromedp.Sleep(time.Second * 10),
 		//chromedp.WaitReady(`iframe`, chromedp.ByQuery),
-		this.getHtml("获取页面元素", this.Html),
+		this.getHtml("获取页面元素"),
 
 		//this.setValue("填写用户名", "//*[@id=\"app\"]/div/div/div[2]/form/div[1]/input", "******"),
 		//this.setValue("填写密码", "//*[@id=\"app\"]/div/div/div[2]/form/div[2]/input", "******"),
@@ -299,7 +299,7 @@ func (this *ChromeDpEngine) toUrl(name, url string) chromedp.ActionFunc {
 }
 
 //获取网页内的a标签的 url地址
-func (this *ChromeDpEngine) getHtml(name string, html *string) chromedp.ActionFunc {
+func (this *ChromeDpEngine) getHtml(name string) chromedp.ActionFunc {
 	return func(ctx context.Context) (err error) {
 		defer this.handleActionError(name, &err)
 		timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -313,14 +313,14 @@ func (this *ChromeDpEngine) getHtml(name string, html *string) chromedp.ActionFu
 		//	fmt.Println("iframeHtml===================================================================")
 		//	fmt.Println(string(iframeHtml))
 		//}
-
+		html := ""
 		if !this.Iframe {
 			_, domain := GetDomain(this.Url)
 			var iframes []*cdp.Node
-			chromedp.Nodes("iframe", &iframes, chromedp.ByQuery).Do(timeout)
-			fmt.Println(iframes)
-			if len(iframes) > 0 {
-				ifHtml := ""
+			timeout1, _ := context.WithTimeout(ctx, 100*time.Millisecond)
+			iframeErr := chromedp.Nodes("iframe", &iframes, chromedp.ByQuery).Do(timeout1)
+			if iframeErr == nil && len(iframes) > 0 {
+				ifHtmls := make([]*string, 0)
 				iframeWin, _ := chromedp.NewContext(CTX, chromedp.WithLogf(log.Printf))
 				defer chromedp.Cancel(iframeWin)
 				for _, v := range iframes {
@@ -329,32 +329,33 @@ func (this *ChromeDpEngine) getHtml(name string, html *string) chromedp.ActionFu
 						ifUrl := GetIframeUrl(src, domain)
 						//fmt.Println(src)
 						//fmt.Println(ifUrl)
+
 						ifEngine := &ChromeDpEngine{
 							Context: iframeWin,
 							Url:     ifUrl,
-							Html:    new(string),
+							Html:    ifHtmls,
 							Iframe:  true,
 						}
+
 						if err := chromedp.Run(ifEngine.Context, ifEngine.newTask()); err != nil {
-							log.Println("执行失败：", err)
-							return err
+							//log.Println("获取iframe，执行失败：", err)
+							continue
 						} else {
-							//fmt.Println(*ifEngine.Html)
-							//e := chromedp.EvaluateAsDevTools(`document.querySelectorAll("iframe")[`+strconv.Itoa(k)+`].innerHTML="`+urlpkg.QueryEscape(*ifEngine.Html)+`"`, "").Do(timeout)
-							//fmt.Println("e=======", e)
-							ifHtml += *ifEngine.Html + "\n"
+							//fmt.Println("ifhtml====")
+							//fmt.Println(*ifEngine.Html[0])
+							this.Html = append(this.Html, ifEngine.Html...)
 						}
-						err = chromedp.OuterHTML("html", html, chromedp.ByQuery).Do(timeout)
-						//*html, _ = urlpkg.QueryUnescape(*html)
-						*html = *html + ifHtml
+
 					}
 				}
 			}
 
-		} else {
-			err = chromedp.OuterHTML("html", html, chromedp.ByQuery).Do(timeout)
-
 		}
+		//fmt.Println("outerhtml")
+		err = chromedp.OuterHTML("html", &html, chromedp.ByQuery).Do(timeout)
+		this.Html = append(this.Html, &html)
+		//fmt.Println("html====")
+		//fmt.Println(html)
 
 		return err
 	}
@@ -396,45 +397,49 @@ func GetIframeUrl(url, domain string) string {
 }
 
 //同域名的子url 如果是暗链，则需要判断url是否是暗链  checkType 1敏感词 2暗链  3挂马
-func GetUrlsAndCheck(html *string, doMainTop, doMain, pageUrl string, checkType int) (urls []string, dark_chain map[string]CheckRes, err error) {
+func GetUrlsAndCheck(html []*string, doMainTop, doMain, pageUrl string, checkType int) (urls []string, dark_chain map[string]CheckRes, err error) {
 	urls, dark_chain = []string{}, make(map[string]CheckRes, 0)
-	dom, err := goquery.NewDocumentFromReader(strings.NewReader(*html))
-	if err != nil {
-		return urls, dark_chain, err
-	}
-
-	dom.Find("a").Each(func(i int, selection *goquery.Selection) {
-		if url, ok := selection.Attr("href"); ok {
-			url = strings.TrimPrefix(url, " ")
-
-			//fmt.Println(url)
-			//检测字符串是否以指定的前缀开头。
-			if strings.HasPrefix(url, "//") {
-				url = "http:" + url
+	if len(html) > 0 {
+		for _, v := range html {
+			dom, err := goquery.NewDocumentFromReader(strings.NewReader(*v))
+			if err != nil {
+				return urls, dark_chain, err
 			}
-			//删除左边的前缀 .. 或者 .
-			url = strings.TrimPrefix(url, "..")
-			url = strings.TrimPrefix(url, ".")
-			if strings.HasPrefix(url, "/") {
-				url = doMain + url
-			}
-			//判断当前地址是否来着当前域名
-			if checkUrlDomain(url, doMainTop) {
-				urls = append(urls, url)
 
-			} else {
-				//暗链监测a标签
-				if checkType == 2 && checkUrlDarkChain(selection) {
-					//pageUrl页面地址  url=a标签的地址
-					dark_chain[Md5Str(pageUrl+url)] = CheckRes{
-						Url:   pageUrl,
-						Value: url,
+			dom.Find("a").Each(func(i int, selection *goquery.Selection) {
+				if url, ok := selection.Attr("href"); ok {
+					url = strings.TrimPrefix(url, " ")
+
+					//fmt.Println(url)
+					//检测字符串是否以指定的前缀开头。
+					if strings.HasPrefix(url, "//") {
+						url = "http:" + url
 					}
-				}
-			}
+					//删除左边的前缀 .. 或者 .
+					url = strings.TrimPrefix(url, "..")
+					url = strings.TrimPrefix(url, ".")
+					if strings.HasPrefix(url, "/") {
+						url = doMain + url
+					}
+					//判断当前地址是否来着当前域名
+					if checkUrlDomain(url, doMainTop) {
+						urls = append(urls, url)
 
+					} else {
+						//暗链监测a标签
+						if checkType == 2 && checkUrlDarkChain(selection) {
+							//pageUrl页面地址  url=a标签的地址
+							dark_chain[Md5Str(pageUrl+url)] = CheckRes{
+								Url:   pageUrl,
+								Value: url,
+							}
+						}
+					}
+
+				}
+			})
 		}
-	})
+	}
 
 	return urls, dark_chain, nil
 }
@@ -491,198 +496,206 @@ func checkUrlDarkChain(selection *goquery.Selection) (ok bool) {
 }
 
 //检查script内容是否有暗链特征
-func checkScriptDarkChain(html *string, pageUrl, doMainTop string) (ok bool, dark_chain map[string]CheckRes) {
+func checkScriptDarkChain(html []*string, pageUrl, doMainTop string) (ok bool, dark_chain map[string]CheckRes) {
 	dark_chain = make(map[string]CheckRes, 0)
-	dom, err := goquery.NewDocumentFromReader(strings.NewReader(*html))
-	if err != nil {
-		return false, dark_chain
+	if len(html) > 0 {
+		for _, v := range html {
+			dom, err := goquery.NewDocumentFromReader(strings.NewReader(*v))
+			if err != nil {
+				return false, dark_chain
+			}
+			//遍历所有script标签 ，通过特征 判断是否是暗链
+			dom.Find("script").Each(func(i int, selection *goquery.Selection) {
+				content := selection.Text()
+				srcUrl := ""
+				if url, ok := selection.Attr("src"); ok {
+					//fmt.Println("script src==", url)
+					url = strings.TrimPrefix(url, " ")
+					srcUrl = url
+				}
+				if documentReferrerRex.MatchString(content) && indexOfRex.MatchString(content) && locationHrefRex.MatchString(content) {
+					dark_chain[Md5Str(pageUrl+content)] = CheckRes{
+						Url:   pageUrl,
+						Value: content,
+					}
+					//todo 暗链=url
+					//fmt.Println("document.referrer true")
+				}
+				if evalRex.MatchString(content) {
+					dark_chain[Md5Str(pageUrl+content)] = CheckRes{
+						Url:   pageUrl,
+						Value: content,
+					}
+					//todo 暗链=url
+					//fmt.Println("eval true")
+				}
+				if srcUrl != "" && evalRex.MatchString(srcUrl) {
+					dark_chain[Md5Str(pageUrl+srcUrl)] = CheckRes{
+						Url:   pageUrl,
+						Value: srcUrl,
+					}
+				}
+				if unicodeRex.MatchString(content) {
+					dark_chain[Md5Str(pageUrl+content)] = CheckRes{
+						Url:   pageUrl,
+						Value: content,
+					}
+					//todo 暗链=url
+					fmt.Println("unicode true")
+				}
+				if srcUrl != "" && unicodeRex.MatchString(srcUrl) {
+					dark_chain[Md5Str(pageUrl+srcUrl)] = CheckRes{
+						Url:   pageUrl,
+						Value: srcUrl,
+					}
+				}
+				if baseRex.MatchString(content) {
+					dark_chain[Md5Str(pageUrl+content)] = CheckRes{
+						Url:   pageUrl,
+						Value: content,
+					}
+					//todo 暗链=url
+					fmt.Println("bash true")
+				}
+				if srcUrl != "" && baseRex.MatchString(srcUrl) {
+					dark_chain[Md5Str(pageUrl+srcUrl)] = CheckRes{
+						Url:   pageUrl,
+						Value: srcUrl,
+					}
+				}
+			})
+
+			//遍历所有marquee标签 ，通过特征 判断是否是暗链
+			dom.Find("marquee").Each(func(i int, selection *goquery.Selection) {
+				//fmt.Println(selection.Attr("width"))
+				aUrl := ""
+				selection.Find("a").Each(func(i int, selectionSub *goquery.Selection) {
+					ok := false
+					aUrl, ok = selectionSub.Attr("href")
+					if ok {
+						return
+					}
+				})
+				if aUrl != "" && !checkUrlDomain(aUrl, doMainTop) { //marquee标签内有a标签且地址不是当前域名  判断marquee标签宽高是否可疑
+					width, widthExists := selection.Attr("width")
+					height, heightExists := selection.Attr("height")
+					if widthExists && heightExists {
+						widthNum, _ := strconv.Atoi(width)
+						heightNum, _ := strconv.Atoi(height)
+						if widthNum <= 10 && heightNum <= 10 { //宽高都小于10
+							//可疑暗链
+							dark_chain[Md5Str(pageUrl+aUrl)] = CheckRes{
+								Url:   pageUrl,
+								Value: aUrl,
+							}
+						}
+					}
+				}
+			})
+
+			//遍历所有meta标签 ，通过特征 判断是否是暗链
+			dom.Find("meta").Each(func(i int, selection *goquery.Selection) {
+
+				aUrl := ""
+				ok := false
+				aUrl, ok = selection.Attr("href")
+				if !ok {
+					return
+				}
+				if aUrl != "" { //mate标签内有url 判断mate是有有 http-equiv属性
+					equiv, equivExists := selection.Attr("http-equiv")
+
+					if equivExists && equiv == "refresh" {
+						if !checkUrlDomain(aUrl, doMainTop) { //地址不是当前域名
+							//可疑暗链
+							dark_chain[Md5Str(pageUrl+aUrl)] = CheckRes{
+								Url:   pageUrl,
+								Value: aUrl,
+							}
+						}
+
+					}
+				}
+			})
+		}
 	}
-	//遍历所有script标签 ，通过特征 判断是否是暗链
-	dom.Find("script").Each(func(i int, selection *goquery.Selection) {
-		content := selection.Text()
-		srcUrl := ""
-		if url, ok := selection.Attr("src"); ok {
-			//fmt.Println("script src==", url)
-			url = strings.TrimPrefix(url, " ")
-			srcUrl = url
-		}
-		if documentReferrerRex.MatchString(content) && indexOfRex.MatchString(content) && locationHrefRex.MatchString(content) {
-			dark_chain[Md5Str(pageUrl+content)] = CheckRes{
-				Url:   pageUrl,
-				Value: content,
-			}
-			//todo 暗链=url
-			//fmt.Println("document.referrer true")
-		}
-		if evalRex.MatchString(content) {
-			dark_chain[Md5Str(pageUrl+content)] = CheckRes{
-				Url:   pageUrl,
-				Value: content,
-			}
-			//todo 暗链=url
-			//fmt.Println("eval true")
-		}
-		if srcUrl != "" && evalRex.MatchString(srcUrl) {
-			dark_chain[Md5Str(pageUrl+srcUrl)] = CheckRes{
-				Url:   pageUrl,
-				Value: srcUrl,
-			}
-		}
-		if unicodeRex.MatchString(content) {
-			dark_chain[Md5Str(pageUrl+content)] = CheckRes{
-				Url:   pageUrl,
-				Value: content,
-			}
-			//todo 暗链=url
-			fmt.Println("unicode true")
-		}
-		if srcUrl != "" && unicodeRex.MatchString(srcUrl) {
-			dark_chain[Md5Str(pageUrl+srcUrl)] = CheckRes{
-				Url:   pageUrl,
-				Value: srcUrl,
-			}
-		}
-		if baseRex.MatchString(content) {
-			dark_chain[Md5Str(pageUrl+content)] = CheckRes{
-				Url:   pageUrl,
-				Value: content,
-			}
-			//todo 暗链=url
-			fmt.Println("bash true")
-		}
-		if srcUrl != "" && baseRex.MatchString(srcUrl) {
-			dark_chain[Md5Str(pageUrl+srcUrl)] = CheckRes{
-				Url:   pageUrl,
-				Value: srcUrl,
-			}
-		}
-	})
-
-	//遍历所有marquee标签 ，通过特征 判断是否是暗链
-	dom.Find("marquee").Each(func(i int, selection *goquery.Selection) {
-		fmt.Println(selection.Attr("width"))
-		aUrl := ""
-		selection.Find("a").Each(func(i int, selectionSub *goquery.Selection) {
-			ok := false
-			aUrl, ok = selectionSub.Attr("href")
-			if ok {
-				return
-			}
-		})
-		if aUrl != "" && !checkUrlDomain(aUrl, doMainTop) { //marquee标签内有a标签且地址不是当前域名  判断marquee标签宽高是否可疑
-			width, widthExists := selection.Attr("width")
-			height, heightExists := selection.Attr("height")
-			if widthExists && heightExists {
-				widthNum, _ := strconv.Atoi(width)
-				heightNum, _ := strconv.Atoi(height)
-				if widthNum <= 10 && heightNum <= 10 { //宽高都小于10
-					//可疑暗链
-					dark_chain[Md5Str(pageUrl+aUrl)] = CheckRes{
-						Url:   pageUrl,
-						Value: aUrl,
-					}
-				}
-			}
-		}
-	})
-
-	//遍历所有meta标签 ，通过特征 判断是否是暗链
-	dom.Find("meta").Each(func(i int, selection *goquery.Selection) {
-
-		aUrl := ""
-		ok := false
-		aUrl, ok = selection.Attr("href")
-		if !ok {
-			return
-		}
-		if aUrl != "" { //mate标签内有url 判断mate是有有 http-equiv属性
-			equiv, equivExists := selection.Attr("http-equiv")
-
-			if equivExists && equiv == "refresh" {
-				if !checkUrlDomain(aUrl, doMainTop) { //地址不是当前域名
-					//可疑暗链
-					dark_chain[Md5Str(pageUrl+aUrl)] = CheckRes{
-						Url:   pageUrl,
-						Value: aUrl,
-					}
-				}
-
-			}
-		}
-	})
 	return len(dark_chain) > 0, dark_chain
 }
 
 //检查iframe内容是否有挂马特征
-func checkIframeHangingHorse(html *string, pageUrl, doMainTop string) (ok bool, hangingHorse map[string]CheckRes) {
+func checkIframeHangingHorse(html []*string, pageUrl, doMainTop string) (ok bool, hangingHorse map[string]CheckRes) {
 	hangingHorse = make(map[string]CheckRes, 0)
-	dom, err := goquery.NewDocumentFromReader(strings.NewReader(*html))
-	if err != nil {
-		return false, hangingHorse
-	}
-	//遍历所有iframe标签 ，通过特征 判断是否是挂马
-	dom.Find("iframe").Each(func(i int, selection *goquery.Selection) {
-		content, styleExists := selection.Attr("style")
-		parentContent, parentStyleExists := selection.Parent().Attr("style")
-		//fmt.Println("style==", content)
-		none := false //是否有隐藏属性
-		if styleExists || parentStyleExists {
-			//判断元素或父元素属性 带隐藏style
-			if displayNoneRex.MatchString(content) || displayNoneRex.MatchString(parentContent) {
-				none = true
+	if len(html) > 0 {
+		for _, v := range html {
+			dom, err := goquery.NewDocumentFromReader(strings.NewReader(*v))
+			if err != nil {
+				return false, hangingHorse
 			}
-			if (positionAbsoluteRex.MatchString(content) && (positionAbsoluteTopRex.MatchString(content) || positionAbsoluteBottomRex.MatchString(content) || positionAbsoluteRightRex.MatchString(content) || positionAbsoluteLeftRex.MatchString(content))) ||
-				(positionAbsoluteRex.MatchString(parentContent) && (positionAbsoluteTopRex.MatchString(parentContent) || positionAbsoluteBottomRex.MatchString(parentContent) || positionAbsoluteRightRex.MatchString(parentContent) || positionAbsoluteLeftRex.MatchString(parentContent))) {
-				none = true
-			}
-			//if whiteColorRex.MatchString(content) || whiteColorRex.MatchString(parentContent) {
-			//	none = true
-			//}
-			if fontSize0Rex.MatchString(content) || fontSize0Rex.MatchString(parentContent) {
-				none = true
-			}
-		}
-		width, widthExists := selection.Attr("width")
-		height, heightExists := selection.Attr("height")
-		parentWidth, parentWidthExists := selection.Parent().Attr("width")
-		parentHeight, parentHeightExists := selection.Parent().Attr("height")
-		//fmt.Println("height height==", width, height)
-		if widthExists && heightExists {
-			//元素宽高 均小于10
-			widthNum, _ := strconv.Atoi(width)
-			heightNum, _ := strconv.Atoi(height)
-			if widthNum <= 10 && heightNum <= 10 {
-				none = true
-			}
-		}
-		if parentWidthExists && parentHeightExists {
-			//父元素宽高 均小于10
-			widthNum, _ := strconv.Atoi(parentWidth)
-			heightNum, _ := strconv.Atoi(parentHeight)
-			if widthNum <= 10 && heightNum <= 10 {
-				none = true
-			}
-		}
-		//fmt.Println("none==", none)
-		if none {
-			srcUrl := ""
-			if url, ok := selection.Attr("src"); ok {
-				url = strings.TrimPrefix(url, " ")
-				srcUrl = url
-			}
-			//fmt.Println("srcUrl==", srcUrl)
-			//fmt.Println("domain ==", !checkUrlDomain(srcUrl, doMainTop))
-			//iframe 有地址并且不是当前域名的地址
-			if srcUrl != "" && !checkUrlDomain(srcUrl, doMainTop) {
-				hangingHorse[Md5Str(pageUrl+srcUrl)] = CheckRes{
-					Url:   pageUrl,
-					Value: srcUrl,
+			//遍历所有iframe标签 ，通过特征 判断是否是挂马
+			dom.Find("iframe").Each(func(i int, selection *goquery.Selection) {
+				content, styleExists := selection.Attr("style")
+				parentContent, parentStyleExists := selection.Parent().Attr("style")
+				//fmt.Println("style==", content)
+				none := false //是否有隐藏属性
+				if styleExists || parentStyleExists {
+					//判断元素或父元素属性 带隐藏style
+					if displayNoneRex.MatchString(content) || displayNoneRex.MatchString(parentContent) {
+						none = true
+					}
+					if (positionAbsoluteRex.MatchString(content) && (positionAbsoluteTopRex.MatchString(content) || positionAbsoluteBottomRex.MatchString(content) || positionAbsoluteRightRex.MatchString(content) || positionAbsoluteLeftRex.MatchString(content))) ||
+						(positionAbsoluteRex.MatchString(parentContent) && (positionAbsoluteTopRex.MatchString(parentContent) || positionAbsoluteBottomRex.MatchString(parentContent) || positionAbsoluteRightRex.MatchString(parentContent) || positionAbsoluteLeftRex.MatchString(parentContent))) {
+						none = true
+					}
+					//if whiteColorRex.MatchString(content) || whiteColorRex.MatchString(parentContent) {
+					//	none = true
+					//}
+					if fontSize0Rex.MatchString(content) || fontSize0Rex.MatchString(parentContent) {
+						none = true
+					}
+				}
+				width, widthExists := selection.Attr("width")
+				height, heightExists := selection.Attr("height")
+				parentWidth, parentWidthExists := selection.Parent().Attr("width")
+				parentHeight, parentHeightExists := selection.Parent().Attr("height")
+				//fmt.Println("height height==", width, height)
+				if widthExists && heightExists {
+					//元素宽高 均小于10
+					widthNum, _ := strconv.Atoi(width)
+					heightNum, _ := strconv.Atoi(height)
+					if widthNum <= 10 && heightNum <= 10 {
+						none = true
+					}
+				}
+				if parentWidthExists && parentHeightExists {
+					//父元素宽高 均小于10
+					widthNum, _ := strconv.Atoi(parentWidth)
+					heightNum, _ := strconv.Atoi(parentHeight)
+					if widthNum <= 10 && heightNum <= 10 {
+						none = true
+					}
+				}
+				//fmt.Println("none==", none)
+				if none {
+					srcUrl := ""
+					if url, ok := selection.Attr("src"); ok {
+						url = strings.TrimPrefix(url, " ")
+						srcUrl = url
+					}
+					//fmt.Println("srcUrl==", srcUrl)
+					//fmt.Println("domain ==", !checkUrlDomain(srcUrl, doMainTop))
+					//iframe 有地址并且不是当前域名的地址
+					if srcUrl != "" && !checkUrlDomain(srcUrl, doMainTop) {
+						hangingHorse[Md5Str(pageUrl+srcUrl)] = CheckRes{
+							Url:   pageUrl,
+							Value: srcUrl,
+						}
+
+					}
 				}
 
-			}
+			})
 		}
-
-	})
+	}
 	//fmt.Println("hangingHorse==", hangingHorse)
 	return len(hangingHorse) > 0, hangingHorse
 }

@@ -11,12 +11,17 @@ import (
 )
 
 func Test_run(t *testing.T) {
-	en, html, err := chromeDpRun("http://www.baidu.com", nil)
+	en, html, err := chromeDpRun("http://127.0.0.3", nil)
 	fmt.Println(en)
 	fmt.Println(html)
 	fmt.Println(err)
+	time.Sleep(time.Second * 5)
+	en, html, err = chromeDpRun("http://www.baidu.com", en.Context)
+	fmt.Println(en)
+	fmt.Println(html)
+	fmt.Println(err)
+	time.Sleep(time.Second * 5)
 	en.Close()
-	time.Sleep(time.Second * 10)
 }
 func Test_run2(t *testing.T) {
 	options := []chromedp.ExecAllocatorOption{
@@ -30,15 +35,24 @@ func Test_run2(t *testing.T) {
 	options = append(options, chromedp.Flag("blink-settings", "imagesEnabled=false")) //不加载图片
 	//var cancel context.CancelFunc
 	ctx, cancel1 := chromedp.NewExecAllocator(context.Background(), options...)
-	ctx, cancel2 := chromedp.NewRemoteAllocator(ctx, "ws://127.0.0.1:9222") //使用远程调试，可以结合下面的容器使用
-	ctx, cancel3 := chromedp.NewContext(ctx, chromedp.WithLogf(log.Printf)) // 会打开浏览器并且新建一个标签页进行操作
-	chromedp.Run(ctx, chromedp.Navigate(`https://baidu.com`))
+	fmt.Println(1)
+	ctx, cancel2 := chromedp.NewRemoteAllocator(ctx, "ws://182.150.0.86:9222") //使用远程调试，可以结合下面的容器使用
+	fmt.Println(2)
 
+	ctx, cancel3 := chromedp.NewContext(ctx, chromedp.WithLogf(log.Printf)) // 会打开浏览器并且新建一个标签页进行操作
+	fmt.Println(3)
+
+	//err := chromedp.Run(ctx, chromedp.Navigate(`https://blog.csdn.net/`))
+	err := chromedp.Run(ctx, chromedp.Tasks{
+		chromedp.Navigate(`http://www.webl.cn`),
+	})
+	fmt.Println(err)
+
+	time.Sleep(time.Second * 5)
 	chromedp.Cancel(ctx)
 	cancel1()
 	cancel2()
 	cancel3()
-	time.Sleep(time.Second * 10)
 }
 
 func Test_run3(t *testing.T) {
@@ -112,4 +126,9 @@ if(search.indexOf("baidu")>0 || search.indexOf("so")>0 || searchindexOf.("soso")
 	locationHrefRex, _ = regexp.Compile(`(window\.l|l|self\.l|this\.l)ocation\.href`)
 	r := locationHrefRex.MatchString(content)
 	fmt.Println(r)
+}
+
+func Test_getDomain(t *testing.T) {
+	url := "https://www.baidu.com"
+	fmt.Println(GetDomain(url))
 }

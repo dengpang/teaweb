@@ -106,12 +106,11 @@ func (this *KeywordCheckSource) Execute(params map[string]string) (value interfa
 	}
 	//监测结果
 	checkRes := map[string]CheckRes{}
-	if ok, res := this.MatchKeyword(this.URL, []byte(*html)); ok && len(res) > 0 {
+	if ok, res := this.MatchKeyword(this.URL, html); ok && len(res) > 0 {
 		for k, v := range res {
 			checkRes[k] = v
 		}
 	}
-	fmt.Println("html=", *html)
 	domainTop, domain := GetDomain(this.URL)
 	Urls, _, err := GetUrlsAndCheck(html, domainTop, domain, this.URL, 1)
 	//已经请求过的url
@@ -128,6 +127,7 @@ func (this *KeywordCheckSource) Execute(params map[string]string) (value interfa
 		wg         = &sync.WaitGroup{}
 		chMax      = make(chan struct{}, 1) //浏览器窗口数
 	)
+	//fmt.Println("=========================loop")
 LOOP:
 	newUrls, urlMap = []string{}, map[string]struct{}{} //重置
 	urlMap = duplicateRemovalUrl(Urls, urlMap)
@@ -174,7 +174,7 @@ LOOP:
 					}
 				}
 
-				if ok, res := this.MatchKeyword(v1, []byte(*subHtml)); ok && len(res) > 0 {
+				if ok, res := this.MatchKeyword(v1, subHtml); ok && len(res) > 0 {
 					resLock.Lock()
 					for k, v := range res {
 						checkRes[k] = v
@@ -216,299 +216,8 @@ LOOP:
 	return
 }
 
-//func (this *KeywordCheckSource) ExecuteOld(params map[string]string) (value interface{}, err error) {
-//	//获取需要匹配的敏感词
-//	this.KeywordList = strings.Split(this.KeywordLists, ",")
-//	//追加自定义关键词
-//	if this.DiyInputKeyword != "" {
-//		diyKeyword := strings.Split(this.DiyInputKeyword, ",")
-//		this.KeywordList = append(this.KeywordList, diyKeyword...)
-//	}
-//	if len(this.URL) == 0 {
-//		err = errors.New("'url' should not be empty")
-//		return maps.Map{
-//			"status":     0,
-//			"scanList":   "",
-//			"scanNum":    0,
-//			"keywords":   "",
-//			"keywordNum": 0,
-//		}, err
-//	}
-//	level, err := strconv.Atoi(this.Level)
-//	if err != nil {
-//		level = 2
-//	}
-//	method := this.Method
-//	if len(method) == 0 {
-//		method = http.MethodGet
-//	}
-//
-//	var body io.Reader = nil
-//
-//	before := time.Now()
-//	req, err := http.NewRequest(method, this.URL, body)
-//	if err != nil {
-//		value = maps.Map{
-//			"cost":       time.Since(before).Seconds(),
-//			"status":     0,
-//			"scanList":   "",
-//			"scanNum":    0,
-//			"keywords":   "",
-//			"keywordNum": 0,
-//		}
-//		return value, err
-//	}
-//
-//	client := teautils.SharedHttpClient(time.Duration(5) * time.Second)
-//	resp, err := client.Do(req)
-//	if err != nil {
-//		return maps.Map{
-//			"status":     0,
-//			"scanList":   "",
-//			"scanNum":    0,
-//			"keywords":   "",
-//			"keywordNum": 0,
-//		}, err
-//	}
-//	defer func() {
-//		_ = resp.Body.Close()
-//	}()
-//
-//	data, err := ioutil.ReadAll(resp.Body)
-//	if err != nil {
-//		return maps.Map{
-//			"status":     0,
-//			"scanList":   "",
-//			"scanNum":    0,
-//			"keywords":   "",
-//			"keywordNum": 0,
-//		}, err
-//	}
-//	//获取网页内的url
-//	hitUrls := this.MatchUrl(data)
-//	urlMap := map[string]struct{}{}
-//	//匹配第一级网页敏感词
-//	hitKeyword := []string{}
-//	hitKeyword = this.MatchKeyword(data)
-//
-//	if len(hitUrls) > 0 {
-//		var (
-//			urlLock = &sync.Mutex{}
-//			keyLock = &sync.Mutex{}
-//			wg      = &sync.WaitGroup{}
-//			chMax   = make(chan struct{}, 20)
-//		)
-//		//下探一级
-//		for _, v1 := range hitUrls {
-//			chMax <- struct{}{}
-//			wg.Add(1)
-//			go func(v1 string) {
-//				defer func() {
-//					wg.Done()
-//					<-chMax
-//				}()
-//				urlLock.Lock()
-//				if _, ok := urlMap[v1]; ok {
-//					urlLock.Unlock()
-//					//已存在
-//					return
-//				} else {
-//					urlMap[v1] = struct{}{}
-//				}
-//				urlLock.Unlock()
-//				resp1, err := this.GetQuery(v1)
-//				if err != nil {
-//					return
-//				}
-//				data1, err := ioutil.ReadAll(resp1.Body)
-//				if err != nil {
-//					return
-//				}
-//				//匹配敏感词
-//				hitKeyword1 := this.MatchKeyword(data1)
-//				if len(hitKeyword1) > 0 {
-//					keyLock.Lock()
-//					hitKeyword = append(hitKeyword, hitKeyword1...)
-//					keyLock.Unlock()
-//				}
-//				//下探2级
-//				if level >= 2 {
-//					hitUrls1 := this.MatchUrl(data1)
-//					if len(hitUrls1) > 0 {
-//						//下探二级
-//						for _, v2 := range hitUrls1 {
-//							urlLock.Lock()
-//							if _, ok := urlMap[v2]; ok {
-//								urlLock.Unlock()
-//								//已存在
-//								continue
-//							} else {
-//								urlMap[v2] = struct{}{}
-//							}
-//							urlLock.Unlock()
-//							resp2, err := this.GetQuery(v2)
-//							if err != nil {
-//								continue
-//							}
-//							data2, err := ioutil.ReadAll(resp2.Body)
-//							if err != nil {
-//								continue
-//							}
-//							//匹配敏感词
-//							hitKeyword2 := this.MatchKeyword(data2)
-//							if len(hitKeyword2) > 0 {
-//								keyLock.Lock()
-//								hitKeyword = append(hitKeyword, hitKeyword2...)
-//								keyLock.Unlock()
-//							}
-//							//下探3级
-//							if level >= 3 {
-//								hitUrls2 := this.MatchUrl(data2)
-//								if len(hitUrls2) > 0 {
-//									//下探三级
-//									for _, v3 := range hitUrls2 {
-//										urlLock.Lock()
-//										if _, ok := urlMap[v3]; ok {
-//											urlLock.Unlock()
-//											//已存在
-//											continue
-//										} else {
-//											urlMap[v3] = struct{}{}
-//										}
-//										urlLock.Unlock()
-//										resp3, err := this.GetQuery(v3)
-//										if err != nil {
-//											continue
-//										}
-//										data3, err := ioutil.ReadAll(resp3.Body)
-//										if err != nil {
-//											continue
-//										}
-//										//匹配敏感词
-//										hitKeyword3 := this.MatchKeyword(data3)
-//										if len(hitKeyword3) > 0 {
-//											keyLock.Lock()
-//											hitKeyword = append(hitKeyword, hitKeyword3...)
-//											keyLock.Unlock()
-//										}
-//									}
-//								}
-//							}
-//						}
-//					}
-//				}
-//			}(v1)
-//		}
-//		wg.Wait()
-//	}
-//	//
-//	urlRes := []string{}
-//	for k, _ := range urlMap {
-//		//取20个 地址
-//		if len(urlRes) > 20 {
-//			break
-//		}
-//		urlRes = append(urlRes, k)
-//	}
-//
-//	//敏感词去重
-//	hitKeywordMap := map[string]struct{}{}
-//	for _, v := range hitKeyword {
-//		hitKeywordMap[v] = struct{}{}
-//	}
-//	hitKeywordList := []string{}
-//	for k, _ := range hitKeywordMap {
-//		hitKeywordList = append(hitKeywordList, k)
-//	}
-//
-//	value = maps.Map{
-//		"cost":       time.Since(before).Seconds(),
-//		"status":     resp.StatusCode,
-//		"scanList":   strings.Join(urlRes, `, `),
-//		"scanNum":    len(urlMap),
-//		"keywords":   strings.Join(hitKeywordList, ","),
-//		"keywordNum": len(hitKeywordList),
-//	}
-//
-//	return
-//}
-
-// get请求
-//func (this *KeywordCheckSource) GetQuery(url string) (resp *http.Response, err error) {
-//	req, err := http.NewRequest(http.MethodGet, url, nil)
-//	if err != nil {
-//		return nil, err
-//	}
-//	client := teautils.SharedHttpClient(time.Duration(5) * time.Second)
-//	resp, err = client.Do(req)
-//	if err != nil {
-//		return nil, err
-//	}
-//	defer func() {
-//		_ = resp.Body.Close()
-//	}()
-//
-//	return resp, err
-//}
-
-//查找网页源码内的URL地址
-//func (this *KeywordCheckSource) MatchUrl(s []byte) (urls []string) {
-//	// href=('|").*?('|")   [a-zA-z]+://[^\s]*("|')
-//	urls = []string{}
-//	urlMap := map[string]struct{}{}
-//	//先匹配 :// 这类地址
-//	re, err := regexp.Compile(`[a-zA-z]+://[^\s]+\.[^\s]+('|")`)
-//	if err != nil {
-//		return urls
-//	}
-//	list := re.FindAll(s, -1)
-//	if len(list) > 0 {
-//		for _, v := range list {
-//			url := string(v)
-//			urlMap[url] = struct{}{}
-//		}
-//	}
-//	//在匹配 href="" 这类地址
-//	re, err = regexp.Compile(`href=('|").*?('|")`)
-//	if err != nil {
-//		return urls
-//	}
-//	list = re.FindAll(s, -1)
-//	if len(list) > 0 {
-//		for _, v := range list {
-//			url := string(v)
-//			urlMap[url] = struct{}{}
-//		}
-//	}
-//	re1, _ := regexp.Compile(`^href=("|')|('|"|\))[^\s]*?$`)
-//	re2, _ := regexp.Compile(`^http`)
-//	re3, _ := regexp.Compile(`(http|https)://(www.)?(\w+(\.)?)+`) //获取域名正则
-//	re4, _ := regexp.Compile(`\\u0026amp\;`)                      // &符号
-//	re5, _ := regexp.Compile(`\\u0026`)                           // &符号
-//	domain := re3.Find(s)
-//	for v := range urlMap {
-//		//正则替换
-//		url := re1.ReplaceAllString(v, "")
-//		url = re4.ReplaceAllString(url, "&")
-//		url = re5.ReplaceAllString(url, "&")
-//		if url == "" {
-//			continue
-//		}
-//		if url != "/" && url != "#" && url != "?" {
-//			if re2.MatchString(url) { //是包含http的地址
-//				urls = append(urls, url)
-//			} else {
-//				urls = append(urls, string(domain)+url)
-//			}
-//
-//		}
-//
-//	}
-//	return urls
-//}
-
 //匹配敏感词
-func (this *KeywordCheckSource) MatchKeyword(url string, s []byte) (ok bool, keyword map[string]CheckRes) {
+func (this *KeywordCheckSource) MatchKeyword(url string, s []*string) (ok bool, keyword map[string]CheckRes) {
 	keyword = make(map[string]CheckRes, 0)
 	if len(this.KeywordList) > 0 {
 		//regexp.Compile(`\\\^\$\*\+\?\{\}\.\[\]\(\)\-\|`)
@@ -517,13 +226,18 @@ func (this *KeywordCheckSource) MatchKeyword(url string, s []byte) (ok bool, key
 				continue
 			}
 			reg := regexp.MustCompile(reg_rule)
-			if reg.Match(s) {
-				keyword[Md5Str(url+reg_rule)] = CheckRes{
-					Url:   url,
-					Value: reg_rule,
+			if len(s) > 0 {
+				for _, html := range s {
+					if reg.Match([]byte(*html)) {
+						keyword[Md5Str(url+reg_rule)] = CheckRes{
+							Url:   url,
+							Value: reg_rule,
+						}
+						continue
+					}
 				}
-				continue
 			}
+
 		}
 	}
 	return len(keyword) > 0, keyword
