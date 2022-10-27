@@ -216,29 +216,36 @@ func (this *Form) ApplyRequest(req *http.Request) (values map[string]interface{}
 				keywords := []string{}
 				keyByte, _ := json.Marshal(v)
 				json.Unmarshal(keyByte, &keywords)
+				reg, _ := regexp.Compile(`[\\\^\$\*\+\?\{\}\.\[\]\(\)\-\|]`)
+
 				if len(keywords) > 0 {
 					for _, v := range keywords {
 						if v == "" {
+							keywordList = append(keywordList, "")
 							continue
 						}
 						keyInfo := keyword.NewKeywordConfigFromId(v)
 						if keyInfo != nil && keyInfo.Keyword != "" {
-							s := strings.Split(keyInfo.Keyword, ",")
-							keywordList = append(keywordList, s...)
+							keyInfo.Keyword = reg.ReplaceAllStringFunc(keyInfo.Keyword, func(b string) string {
+								//正则 元字符需要转义
+								return `\` + b
+							})
+							keywordList = append(keywordList, keyInfo.Keyword)
 						}
 					}
 
 				}
-				keywordsStr := strings.Join(keywordList, ",")
 				if diyKey, ok := values["diyInputKeyword"]; ok {
-					keywordsStr = fmt.Sprintf("%s,%s", keywordsStr, diyKey)
+					//keywords = append(keywords, "a994a9aa58c94a5c") //自定义类关键词
+					diyKeyStr := reg.ReplaceAllStringFunc(fmt.Sprintf("%s", diyKey), func(b string) string {
+						//正则 元字符需要转义
+						return `\` + b
+					})
+					//keywordList = append(keywordList, diyKeyStr)
+					values["diyInputKeyword"] = diyKeyStr
 				}
-				reg, _ := regexp.Compile(`[\\\^\$\*\+\?\{\}\.\[\]\(\)\-\|]`)
-				keywordsStr = reg.ReplaceAllStringFunc(keywordsStr, func(b string) string {
-					//正则 元字符需要转义
-					return `\` + b
-				})
-				values["keywordLists"] = keywordsStr
+
+				values["keywordLists"] = keywordList
 			}
 			values[superElement.Code] = v
 		}

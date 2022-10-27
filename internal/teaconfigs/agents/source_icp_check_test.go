@@ -4,12 +4,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+	"time"
 )
 
 func TestCheck(t *testing.T) {
 	s := NewIcpCheckSource()
 	s.Domain = "baidu.com"
 	v, err := s.Execute(nil)
+	fmt.Println(v)
+	fmt.Println(err)
+
+	time.Sleep(time.Second * 2)
+	v, err = s.Execute(nil)
 	fmt.Println(v)
 	fmt.Println(err)
 

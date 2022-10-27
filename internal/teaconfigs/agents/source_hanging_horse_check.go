@@ -101,6 +101,13 @@ func (this *HangingHouseCheckSource) Execute(params map[string]string) (value in
 			checkRes[k] = v
 		}
 	}
+	if engine.Location != "" && engine.Location != "chrome-error://chromewebdata/" {
+		if scriptHanging := checkScriptHangingHorse(domainTop, this.URL, engine.Location); len(scriptHanging) > 0 {
+			for k, v := range scriptHanging {
+				checkRes[k] = v
+			}
+		}
+	}
 	//已经请求过的url
 	urlExistsMap := map[string]struct{}{
 		this.URL: {},
@@ -145,7 +152,7 @@ LOOP:
 
 				//fmt.Println("url == ", v1, "level==", levelOn)
 
-				_, subHtml, err := chromeDpRun(v1, engine.Context)
+				engineSub, subHtml, err := chromeDpRun(v1, engine.Context)
 				if err != nil {
 					return
 				}
@@ -166,6 +173,15 @@ LOOP:
 						checkRes[k] = v
 					}
 					resLock.Unlock()
+				}
+				if engineSub.Location != "" && engineSub.Location != "chrome-error://chromewebdata/" {
+					if scriptHanging := checkScriptHangingHorse(domainTop, v1, engineSub.Location); len(scriptHanging) > 0 {
+						resLock.Lock()
+						for k, v := range scriptHanging {
+							checkRes[k] = v
+						}
+						resLock.Unlock()
+					}
 				}
 			}(k1)
 		}

@@ -82,7 +82,7 @@ func init() {
 			winMap := map[string]string{}
 			n := 0
 			for {
-				<-time.Tick(time.Second * 60)
+				<-time.Tick(time.Second * 100)
 				winCtx := CTX
 				winCtx, _ = chromedp.NewContext(winCtx)
 				targets, err := chromedp.Targets(winCtx)
@@ -121,14 +121,21 @@ func init() {
 
 type (
 	ChromeDpEngine struct {
-		Context context.Context `json:"context"` //chromedp上下文信息
-		Url     string          `json:"url"`     //请求的第一个地址
-		Html    []*string       `json:"html"`    //拿到的响应内容
-		Iframe  bool            `json:"iframe"`  //专门获取iframe标签的内容的窗口
+		Context  context.Context `json:"context"`  //chromedp上下文信息
+		Url      string          `json:"url"`      //请求的第一个地址
+		Html     []*string       `json:"html"`     //拿到的响应内容
+		Iframe   bool            `json:"iframe"`   //专门获取iframe标签的内容的窗口
+		Location string          `json:"location"` //请求地址后，响应页面的地址（js跳转后的地址）
 	}
 	CheckRes struct {
-		Url   string `json:"url"`   //页面地址
-		Value string `json:"value"` //监测到的内容
+		Url    string `json:"url"`              //页面地址
+		Value  string `json:"value"`            //监测到的内容
+		Cate   string `json:"cate,omitempty"`   //敏感词分类
+		Number int    `json:"number,omitempty"` //敏感词数
+	}
+	Cates struct {
+		Name  string `json:"name"`  //分类
+		Value int    `json:"value"` //数量
 	}
 )
 
@@ -185,7 +192,7 @@ func chromeDpRun(url string, ctx context.Context) (engine *ChromeDpEngine, html 
 		os.Exit(1)
 	}()
 	*/
-	fmt.Println("run")
+	//fmt.Println("run")
 	if err := chromedp.Run(engine.Context, engine.newTask()); err != nil {
 		log.Println("执行失败：", err)
 		return engine, make([]*string, 0), err
@@ -286,14 +293,15 @@ func (this *ChromeDpEngine) click(name, path string) chromedp.ActionFunc {
 func (this *ChromeDpEngine) toUrl(name, url string) chromedp.ActionFunc {
 	return func(ctx context.Context) (err error) {
 		defer this.handleActionError(name, &err)
-		ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
-		//chromedp.Sleep(3 * time.Second).Do(ctx)
 		err = chromedp.Navigate(url).Do(ctx)
 		if err != nil {
-			return err
+			fmt.Println(name, " err=========", err)
+			return nil
 		}
 
+		chromedp.Sleep(1 * time.Second).Do(ctx)
 		return nil
 	}
 }
@@ -349,7 +357,11 @@ func (this *ChromeDpEngine) getHtml(name string) chromedp.ActionFunc {
 					}
 				}
 			}
-
+			//chromedp.Sleep(time.Second)
+			location := ""
+			err = chromedp.EvaluateAsDevTools("document.location.href;", &location).Do(timeout)
+			//fmt.Println("location err=", err)
+			this.Location = location
 		}
 		//fmt.Println("outerhtml")
 		err = chromedp.OuterHTML("html", &html, chromedp.ByQuery).Do(timeout)
@@ -475,8 +487,8 @@ func checkUrlDarkChain(selection *goquery.Selection) (ok bool) {
 			//todo 暗链=url
 			fmt.Println("displayNoneRex true")
 		}
-		if (positionAbsoluteRex.MatchString(content) && (positionAbsoluteTopRex.MatchString(content) || positionAbsoluteBottomRex.MatchString(content) || positionAbsoluteRightRex.MatchString(content) || positionAbsoluteLeftRex.MatchString(content))) ||
-			(positionAbsoluteRex.MatchString(parentContent) && (positionAbsoluteTopRex.MatchString(parentContent) || positionAbsoluteBottomRex.MatchString(parentContent) || positionAbsoluteRightRex.MatchString(parentContent) || positionAbsoluteLeftRex.MatchString(parentContent))) {
+		if (positionAbsoluteRex.MatchString(content) || (positionAbsoluteTopRex.MatchString(content) || positionAbsoluteBottomRex.MatchString(content) || positionAbsoluteRightRex.MatchString(content) || positionAbsoluteLeftRex.MatchString(content))) ||
+			(positionAbsoluteRex.MatchString(parentContent) || (positionAbsoluteTopRex.MatchString(parentContent) || positionAbsoluteBottomRex.MatchString(parentContent) || positionAbsoluteRightRex.MatchString(parentContent) || positionAbsoluteLeftRex.MatchString(parentContent))) {
 			return true
 			//todo 暗链=url
 			fmt.Println("positionAbsoluteRex true")
@@ -516,7 +528,7 @@ func checkScriptDarkChain(html []*string, pageUrl, doMainTop string) (ok bool, d
 				if documentReferrerRex.MatchString(content) && indexOfRex.MatchString(content) && locationHrefRex.MatchString(content) {
 					dark_chain[Md5Str(pageUrl+content)] = CheckRes{
 						Url:   pageUrl,
-						Value: content,
+						Value: simplifyContent(content),
 					}
 					//todo 暗链=url
 					//fmt.Println("document.referrer true")
@@ -524,7 +536,7 @@ func checkScriptDarkChain(html []*string, pageUrl, doMainTop string) (ok bool, d
 				if evalRex.MatchString(content) {
 					dark_chain[Md5Str(pageUrl+content)] = CheckRes{
 						Url:   pageUrl,
-						Value: content,
+						Value: simplifyContent(content),
 					}
 					//todo 暗链=url
 					//fmt.Println("eval true")
@@ -538,10 +550,10 @@ func checkScriptDarkChain(html []*string, pageUrl, doMainTop string) (ok bool, d
 				if unicodeRex.MatchString(content) {
 					dark_chain[Md5Str(pageUrl+content)] = CheckRes{
 						Url:   pageUrl,
-						Value: content,
+						Value: simplifyContent(content),
 					}
 					//todo 暗链=url
-					fmt.Println("unicode true")
+					//fmt.Println("unicode true")
 				}
 				if srcUrl != "" && unicodeRex.MatchString(srcUrl) {
 					dark_chain[Md5Str(pageUrl+srcUrl)] = CheckRes{
@@ -552,7 +564,7 @@ func checkScriptDarkChain(html []*string, pageUrl, doMainTop string) (ok bool, d
 				if baseRex.MatchString(content) {
 					dark_chain[Md5Str(pageUrl+content)] = CheckRes{
 						Url:   pageUrl,
-						Value: content,
+						Value: simplifyContent(content),
 					}
 					//todo 暗链=url
 					fmt.Println("bash true")
@@ -624,80 +636,113 @@ func checkScriptDarkChain(html []*string, pageUrl, doMainTop string) (ok bool, d
 
 //检查iframe内容是否有挂马特征
 func checkIframeHangingHorse(html []*string, pageUrl, doMainTop string) (ok bool, hangingHorse map[string]CheckRes) {
+
 	hangingHorse = make(map[string]CheckRes, 0)
 	if len(html) > 0 {
 		for _, v := range html {
+
 			dom, err := goquery.NewDocumentFromReader(strings.NewReader(*v))
 			if err != nil {
 				return false, hangingHorse
 			}
 			//遍历所有iframe标签 ，通过特征 判断是否是挂马
 			dom.Find("iframe").Each(func(i int, selection *goquery.Selection) {
-				content, styleExists := selection.Attr("style")
-				parentContent, parentStyleExists := selection.Parent().Attr("style")
-				//fmt.Println("style==", content)
-				none := false //是否有隐藏属性
-				if styleExists || parentStyleExists {
-					//判断元素或父元素属性 带隐藏style
-					if displayNoneRex.MatchString(content) || displayNoneRex.MatchString(parentContent) {
-						none = true
-					}
-					if (positionAbsoluteRex.MatchString(content) && (positionAbsoluteTopRex.MatchString(content) || positionAbsoluteBottomRex.MatchString(content) || positionAbsoluteRightRex.MatchString(content) || positionAbsoluteLeftRex.MatchString(content))) ||
-						(positionAbsoluteRex.MatchString(parentContent) && (positionAbsoluteTopRex.MatchString(parentContent) || positionAbsoluteBottomRex.MatchString(parentContent) || positionAbsoluteRightRex.MatchString(parentContent) || positionAbsoluteLeftRex.MatchString(parentContent))) {
-						none = true
-					}
-					//if whiteColorRex.MatchString(content) || whiteColorRex.MatchString(parentContent) {
-					//	none = true
-					//}
-					if fontSize0Rex.MatchString(content) || fontSize0Rex.MatchString(parentContent) {
-						none = true
-					}
+				hangingOk := false //   疑是挂马
+				srcUrl := ""
+				if url, isok := selection.Attr("src"); isok {
+					url = strings.TrimPrefix(url, " ")
+					srcUrl = url
 				}
-				width, widthExists := selection.Attr("width")
-				height, heightExists := selection.Attr("height")
-				parentWidth, parentWidthExists := selection.Parent().Attr("width")
-				parentHeight, parentHeightExists := selection.Parent().Attr("height")
-				//fmt.Println("height height==", width, height)
-				if widthExists && heightExists {
-					//元素宽高 均小于10
-					widthNum, _ := strconv.Atoi(width)
-					heightNum, _ := strconv.Atoi(height)
-					if widthNum <= 10 && heightNum <= 10 {
-						none = true
-					}
-				}
-				if parentWidthExists && parentHeightExists {
-					//父元素宽高 均小于10
-					widthNum, _ := strconv.Atoi(parentWidth)
-					heightNum, _ := strconv.Atoi(parentHeight)
-					if widthNum <= 10 && heightNum <= 10 {
-						none = true
-					}
-				}
-				//fmt.Println("none==", none)
-				if none {
-					srcUrl := ""
-					if url, ok := selection.Attr("src"); ok {
-						url = strings.TrimPrefix(url, " ")
-						srcUrl = url
-					}
-					//fmt.Println("srcUrl==", srcUrl)
-					//fmt.Println("domain ==", !checkUrlDomain(srcUrl, doMainTop))
-					//iframe 有地址并且不是当前域名的地址
-					if srcUrl != "" && !checkUrlDomain(srcUrl, doMainTop) {
-						hangingHorse[Md5Str(pageUrl+srcUrl)] = CheckRes{
-							Url:   pageUrl,
-							Value: srcUrl,
+				//有地址并且不是当前域名的地址
+				if srcUrl != "" && !checkUrlDomain(srcUrl, doMainTop) {
+					{ //通过标签属性+地址是否同顶级域名 判断是否挂马
+						content, styleExists := selection.Attr("style")
+						parentContent, parentStyleExists := selection.Parent().Attr("style")
+						//fmt.Println("style==", content)
+						if styleExists || parentStyleExists {
+							//判断元素或父元素属性 带隐藏style
+							if displayNoneRex.MatchString(content) || displayNoneRex.MatchString(parentContent) {
+								hangingOk = true
+							}
+							if (positionAbsoluteRex.MatchString(content) || (positionAbsoluteTopRex.MatchString(content) || positionAbsoluteBottomRex.MatchString(content) || positionAbsoluteRightRex.MatchString(content) || positionAbsoluteLeftRex.MatchString(content))) ||
+								(positionAbsoluteRex.MatchString(parentContent) || (positionAbsoluteTopRex.MatchString(parentContent) || positionAbsoluteBottomRex.MatchString(parentContent) || positionAbsoluteRightRex.MatchString(parentContent) || positionAbsoluteLeftRex.MatchString(parentContent))) {
+								hangingOk = true
+							}
+							//if whiteColorRex.MatchString(content) || whiteColorRex.MatchString(parentContent) {
+							//	none = true
+							//}
+							if fontSize0Rex.MatchString(content) || fontSize0Rex.MatchString(parentContent) {
+								hangingOk = true
+							}
+						}
+						width, widthExists := selection.Attr("width")
+						height, heightExists := selection.Attr("height")
+						parentWidth, parentWidthExists := selection.Parent().Attr("width")
+						parentHeight, parentHeightExists := selection.Parent().Attr("height")
+						//fmt.Println("height height==", width, height)
+						if !hangingOk && (widthExists && heightExists) {
+							//元素宽高 均小于10
+							widthNum, _ := strconv.Atoi(width)
+							heightNum, _ := strconv.Atoi(height)
+							if widthNum <= 10 && heightNum <= 10 {
+								hangingOk = true
+							}
+						}
+						if !hangingOk && (parentWidthExists && parentHeightExists) {
+							//父元素宽高 均小于10
+							widthNum, _ := strconv.Atoi(parentWidth)
+							heightNum, _ := strconv.Atoi(parentHeight)
+							if widthNum <= 10 && heightNum <= 10 {
+								hangingOk = true
+							}
 						}
 
 					}
+
+					//通过是否备案来判断
+					if !hangingOk {
+						icp := NewIcpCheckSource()
+						icp.GetToken(getIcpTokenKey)
+						icp.Domain, _ = GetDomain(srcUrl)
+						if _, icpOk, err := icp.Posticp(true); err == nil && !icpOk {
+							hangingOk = true
+						}
+					}
 				}
 
+				//fmt.Println("none==", none)
+				if hangingOk {
+					hangingHorse[Md5Str(pageUrl+srcUrl)] = CheckRes{
+						Url:   pageUrl,
+						Value: srcUrl,
+					}
+				}
 			})
 		}
 	}
 	//fmt.Println("hangingHorse==", hangingHorse)
 	return len(hangingHorse) > 0, hangingHorse
+}
+
+//当前请求的url，当前请求地址的顶级域名，得到的响应地址
+func checkScriptHangingHorse(domainTop, url, location string) (hangingHorse map[string]CheckRes) {
+	hangingHorse = make(map[string]CheckRes, 0)
+
+	//响应地址的顶级域名和请求地址的顶级域名如果不同，可疑挂马
+	if top, _ := GetDomain(location); top != domainTop {
+
+		icp := NewIcpCheckSource()
+		icp.GetToken(getIcpTokenKey)
+		icp.Domain, _ = GetDomain(location)
+		if _, icpOk, err := icp.Posticp(true); err == nil && !icpOk {
+			hangingHorse[Md5Str(url+location)] = CheckRes{
+				Url:   url,
+				Value: location,
+			}
+		}
+
+	}
+	return
 }
 
 //通过url地址 获取顶级域名和当前域名
@@ -739,4 +784,19 @@ func Md5Str(str string) string {
 	has := md5.Sum(data)
 	md5str := fmt.Sprintf("%x", has)
 	return md5str
+}
+
+//简化内容  内容太长中间使用省略号
+func simplifyContent(content string) string {
+	if len([]byte(content)) < 20 {
+		return content
+	}
+	str := strings.Split(content, "")
+	if len(str) > 201 {
+		s := str[0:100]
+		contentLi := append(s, "........(中间省略)")
+		contentLi = append(contentLi, str[len(str)-101:]...)
+		content = strings.Join(contentLi, "")
+	}
+	return content
 }

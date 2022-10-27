@@ -16,6 +16,8 @@ import (
 	"time"
 )
 
+var keyCateMap = sync.Map{}
+
 // 敏感词监测
 type KeywordCheckSource struct {
 	Source `yaml:",inline"`
@@ -26,11 +28,25 @@ type KeywordCheckSource struct {
 	Headers         []*shared.Variable `yaml:"headers" json:"headers"`
 	Params          []*shared.Variable `yaml:"params" json:"params"`
 	TextBody        string             `yaml:"textBody" json:"textBody"`
-	Keywords        []string           `yaml:"keywords" json:"keywords"` //需要匹配的 敏感词ID
+	Keywords        []string           `yaml:"keywords" json:"keywords"`     //需要匹配的 敏感词ID
+	KeywordId       []string           `yaml:"keyword_id" json:"keyword_id"` //需要匹配的 敏感词ID
 	Level           string             `yaml:"level" json:"level"`
-	KeywordLists    string             `yaml:"keywordLists" json:"keywordLists"`       //需要匹配的敏感词
-	KeywordList     []string           `yaml:"keywordList" json:"keywordList"`         //需要匹配的敏感词
+	KeywordLists    []string           `yaml:"keywordLists" json:"keywordLists"`       //需要匹配的敏感词
+	KeywordList     [][]string         `yaml:"keywordList" json:"keywordList"`         //需要匹配的敏感词
 	DiyInputKeyword string             `yaml:"diyInputKeyword" json:"diyInputKeyword"` //自定义输入敏感词 ，非选择的自定义类敏感词
+}
+
+func init() {
+	keyCateMap.Store("2ebfba95c691c02e", "博彩类")
+	keyCateMap.Store("8d5abb6c740a965e", "反动类")
+	keyCateMap.Store("9e4ad5af6922584a", "涉黑类")
+	keyCateMap.Store("98216a07530cc9ef", "政治类")
+	keyCateMap.Store("be977ee8ea41b6be", "民生类")
+	keyCateMap.Store("df81dd548ed4fb68", "暴恐类")
+	keyCateMap.Store("dfc49c00d82454bf", "涉黄类")
+	keyCateMap.Store("9d274f7ec0294e71", "其它类")
+	keyCateMap.Store("a994a9aa58c94a5c", "自定义")
+	keyCateMap.Store("diy", "自定义")
 }
 
 // 获取新对象
@@ -56,11 +72,19 @@ func (this *KeywordCheckSource) Description() string {
 // 执行
 func (this *KeywordCheckSource) Execute(params map[string]string) (value interface{}, err error) {
 	//获取需要匹配的敏感词
-	this.KeywordList = strings.Split(this.KeywordLists, ",")
+	this.KeywordList = make([][]string, 0)
+	this.KeywordId = make([]string, 0)
+	for _, v := range this.KeywordLists {
+		k := strings.Split(v, ",")
+		this.KeywordList = append(this.KeywordList, k)
+	}
+	this.KeywordId = append(this.Keywords)
+	//this.KeywordList = strings.Split(this.KeywordLists, ",")
 	//追加自定义关键词
 	if this.DiyInputKeyword != "" {
 		diyKeyword := strings.Split(this.DiyInputKeyword, ",")
-		this.KeywordList = append(this.KeywordList, diyKeyword...)
+		this.KeywordList = append(this.KeywordList, diyKeyword)
+		this.KeywordId = append(this.KeywordId, "diy")
 	}
 	if len(this.URL) == 0 {
 		err = errors.New("'url' should not be empty")
@@ -71,6 +95,7 @@ func (this *KeywordCheckSource) Execute(params map[string]string) (value interfa
 			"scanNum":    0,
 			"keywords":   make([]CheckRes, 0),
 			"keywordNum": 0,
+			"cate":       []Cates{},
 		}, err
 	}
 	levelOn := int(0)
@@ -89,6 +114,7 @@ func (this *KeywordCheckSource) Execute(params map[string]string) (value interfa
 			"scanNum":    0,
 			"keywords":   make([]CheckRes, 0),
 			"keywordNum": 0,
+			"cate":       []Cates{},
 		}, err
 	}
 	engine, html, err := chromeDpRun(this.URL, nil)
@@ -101,6 +127,7 @@ func (this *KeywordCheckSource) Execute(params map[string]string) (value interfa
 			"scanNum":    0,
 			"keywords":   make([]CheckRes, 0),
 			"keywordNum": 0,
+			"cate":       []Cates{},
 		}
 		return value, err
 	}
@@ -200,17 +227,46 @@ LOOP:
 		urlRes = append(urlRes, k)
 	}
 
-	list := []CheckRes{}
+	list, cateMap, listMap, n, cateSli := []CheckRes{}, map[string]int{}, map[string]CheckRes{}, 0, []Cates{}
 	for _, v := range checkRes {
+		n += v.Number
+		if _, ok := cateMap[v.Cate]; ok {
+			cateMap[v.Cate] += v.Number
+
+		} else {
+			cateMap[v.Cate] = v.Number
+
+		}
+
+		if value, ok := listMap[v.Url]; ok {
+			listMap[v.Url] = CheckRes{
+				Url: v.Url, Value: fmt.Sprintf("%s,%s", v.Value, value.Value),
+			}
+		} else {
+			listMap[v.Url] = CheckRes{
+				Url: v.Url, Value: v.Value,
+			}
+		}
+	}
+	for _, v := range listMap {
 		list = append(list, v)
 	}
+
+	for k, v := range cateMap {
+		cateSli = append(cateSli, Cates{
+			Name:  k,
+			Value: v,
+		})
+	}
+
 	value = maps.Map{
 		"cost":       time.Since(before).Seconds(),
 		"status":     200,
 		"scanList":   strings.Join(urlRes, `, `),
 		"scanNum":    len(urlExistsMap),
 		"keywords":   list,
-		"keywordNum": len(list),
+		"keywordNum": n,
+		"cate":       cateSli,
 	}
 
 	return
@@ -221,19 +277,45 @@ func (this *KeywordCheckSource) MatchKeyword(url string, s []*string) (ok bool, 
 	keyword = make(map[string]CheckRes, 0)
 	if len(this.KeywordList) > 0 {
 		//regexp.Compile(`\\\^\$\*\+\?\{\}\.\[\]\(\)\-\|`)
-		for _, reg_rule := range this.KeywordList {
-			if reg_rule == "" {
+		for i, reg_rule := range this.KeywordList {
+			if len(reg_rule) == 0 {
 				continue
 			}
-			reg := regexp.MustCompile(reg_rule)
-			if len(s) > 0 {
-				for _, html := range s {
-					if reg.Match([]byte(*html)) {
-						keyword[Md5Str(url+reg_rule)] = CheckRes{
-							Url:   url,
-							Value: reg_rule,
+			cateName := "未知"
+			//fmt.Println(len(this.KeywordId), len(this.KeywordList))
+			if len(this.KeywordId) == len(this.KeywordList) {
+				//fmt.Println("i=", i)
+				if name, ok := keyCateMap.Load(this.KeywordId[i]); ok {
+					cateName = fmt.Sprintf("%s", name)
+				}
+			}
+			//fmt.Println("cateName==", cateName)
+			for _, key := range reg_rule {
+				if key == "" {
+					continue
+				}
+				reg := regexp.MustCompile(key)
+				if len(s) > 0 {
+					for _, html := range s {
+						if reg.Match([]byte(*html)) {
+							if checkRes, ok := keyword[Md5Str(url+cateName)]; ok {
+								keyword[Md5Str(url+cateName)] = CheckRes{
+									Url:    url,
+									Value:  fmt.Sprintf("%s,%s", key, checkRes.Value),
+									Cate:   cateName,
+									Number: checkRes.Number + 1,
+								}
+							} else {
+								keyword[Md5Str(url+cateName)] = CheckRes{
+									Url:    url,
+									Value:  key,
+									Cate:   cateName,
+									Number: 1,
+								}
+							}
+
+							continue
 						}
-						continue
 					}
 				}
 			}
