@@ -65,6 +65,7 @@ func init() {
 			Get("/backup/file/:filename/restore", new(backup.RestoreAction)).
 			Get("/backup/file/:filename/delete", new(backup.DeleteAction)).
 			Get("/keyword/list", new(keywords.KeywordsAction)).
+			Post("/keyword/update", new(keywords.KeywordsSaveAction)).
 			EndAll()
 	})
 }

@@ -5,10 +5,13 @@ import (
 	"crypto/md5"
 	"errors"
 	"fmt"
+	"github.com/TeaWeb/build/internal/teautils"
 	"github.com/chromedp/cdproto/cdp"
+	"github.com/iwind/TeaGo/logs"
 	"io/ioutil"
 	"log"
 	"net"
+	"net/http"
 	"regexp"
 	"runtime"
 	"strconv"
@@ -38,11 +41,13 @@ var whiteColorRex *regexp.Regexp
 var fontSize0Rex *regexp.Regexp
 var marqueeHeightRex *regexp.Regexp
 var marqueeWidthRex *regexp.Regexp
+var javascriptRex *regexp.Regexp
 
 var MaxWind = runtime.NumCPU() * 2
 var WindNum = int(0) //已经打开的窗口数
 var TargeLock = &sync.Mutex{}
-var CTX context.Context
+var WinLock = &sync.Mutex{}
+var CommCTX context.Context
 
 func init() {
 	documentReferrerRex, _ = regexp.Compile(`document\.referrer`)                                                                      //特殊关键词
@@ -61,6 +66,7 @@ func init() {
 	fontSize0Rex, _ = regexp.Compile(`font-size\:\s{1,}0`)                                                                             //字体大小是0  标识
 	marqueeHeightRex, _ = regexp.Compile(`height="\d{1}"`)                                                                             //marquee标签高很小  标识
 	marqueeWidthRex, _ = regexp.Compile(`width="\d{1}"`)                                                                               //marquee标签宽很小  标识
+	javascriptRex, _ = regexp.Compile(`^javascript(\:|\()`)                                                                            //javascript 标识
 
 	options := []chromedp.ExecAllocatorOption{
 		chromedp.Flag("headless", true), // debug使用false  正式使用用true
@@ -73,22 +79,22 @@ func init() {
 	options = append(options, chromedp.Flag("blink-settings", "imagesEnabled=false")) //不加载图片
 	options = append(options, chromedp.Flag("disable-web-security", true))            //禁用安全标识
 	//var cancel context.CancelFunc
-	CTX, _ = chromedp.NewExecAllocator(context.Background(), options...)
-	CTX, _ = chromedp.NewRemoteAllocator(CTX, "ws://127.0.0.1:9222") //使用远程调试，可以结合下面的容器使用
+	CommCTX, _ = chromedp.NewExecAllocator(context.Background(), options...)
+	//CTX, _ = chromedp.NewRemoteAllocator(CTX, "ws://127.0.0.1:9222") //使用远程调试，可以结合下面的容器使用
 
 	//窗口自检 定时关闭因为打开网页失败而导致无法关闭的网页
-	if CTX != nil {
-		go func() {
-			winMap := map[string]string{}
-			n := 0
-			for {
-				<-time.Tick(time.Second * 100)
-				winCtx := CTX
+	//return
+	go func() {
+		winMap := map[string]string{}
+		n := 0
+		for {
+			<-time.Tick(time.Second * 60)
+			for _, ch := range chromeHost {
+				winCtx, _ := chromedp.NewRemoteAllocator(CommCTX, fmt.Sprintf("ws://%v:%v", ch.Addr, ch.Port)) //使用远程调试，可以结合下面的容器使用
 				winCtx, _ = chromedp.NewContext(winCtx)
 				targets, err := chromedp.Targets(winCtx)
 				if err != nil {
-					CTX, _ = chromedp.NewRemoteAllocator(CTX, "ws://127.0.0.1:9222") //使用远程调试，可以结合下面的容器使用
-					//fmt.Println("获取打开的窗口失败", err)
+					chromedp.Cancel(winCtx)
 					continue
 				}
 				for _, v := range targets {
@@ -113,19 +119,30 @@ func init() {
 					winMap = map[string]string{}
 					n = 0
 				}
+				fmt.Println("窗口监测。。", time.Now())
 			}
-		}()
+		}
 
-	}
+	}()
+
+	//go func() {
+	//	for {
+	//		time.Sleep(time.Second)
+	//		fmt.Println("chromeHost", chromeHost)
+	//	}
+	//}()
+
 }
 
 type (
 	ChromeDpEngine struct {
-		Context  context.Context `json:"context"`  //chromedp上下文信息
-		Url      string          `json:"url"`      //请求的第一个地址
-		Html     []*string       `json:"html"`     //拿到的响应内容
-		Iframe   bool            `json:"iframe"`   //专门获取iframe标签的内容的窗口
-		Location string          `json:"location"` //请求地址后，响应页面的地址（js跳转后的地址）
+		Context   context.Context `json:"context"`    //chromedp上下文信息
+		Url       string          `json:"url"`        //请求的第一个地址
+		Html      []*Page         `json:"html"`       //拿到的响应内容
+		Iframe    bool            `json:"iframe"`     //专门获取iframe标签的内容的窗口
+		Location  string          `json:"location"`   //请求地址后，响应页面的地址（js跳转后的地址）
+		DomainTop string          `json:"domain_top"` //顶级域名
+		Domain    string          `json:"domain"`     //当前域名
 	}
 	CheckRes struct {
 		Url    string `json:"url"`              //页面地址
@@ -137,11 +154,15 @@ type (
 		Name  string `json:"name"`  //分类
 		Value int    `json:"value"` //数量
 	}
+	Page struct {
+		Url  string `json:"url"`  //页面的url  （一个url可能返回多个页面，包含内嵌的iframe，每个页面有自己单独的地址）
+		Html string `json:"html"` //页面的html源码
+	}
 )
 
-//检查是否有9222端口，来判断是否运行在linux上
-func checkChromePort() bool {
-	addr := net.JoinHostPort("127.0.0.1", "9222")
+// 检查是否有9222端口，来判断是否运行在linux上
+func checkChromePort(ip string, port string) bool {
+	addr := net.JoinHostPort(ip, port)
 	conn, err := net.DialTimeout("tcp", addr, 5*time.Second)
 	if err != nil {
 		return false
@@ -150,32 +171,35 @@ func checkChromePort() bool {
 	return true
 }
 
-//ctx 可复用
-func chromeDpRun(url string, ctx context.Context) (engine *ChromeDpEngine, html []*string, err error) {
+// url 请求的地址
+// ctx 可复用
+func chromeDpRun(url string, ctx context.Context) (engine *ChromeDpEngine, html []*Page, err error) {
 	//url := "http://127.0.0.1"
 	engine = &ChromeDpEngine{
-		//Context: newChromeDpCtx(),
-		Url:  url,
-		Html: make([]*string, 0),
+		Context: ctx,
+		Url:     url,
+		Html:    make([]*Page, 0),
 	}
-	if ctx != nil {
-		engine.Context = ctx
-	} else {
-		engine.Context, err = newChromeDpCtx()
-		if err != nil {
-			for i := 0; i < 60; i++ { //重试60次，每次等待一分钟
-				//fmt.Println("等待的url", url, err, time.Now())
-				<-time.Tick(time.Second * 10)
-				engine.Context, err = newChromeDpCtx()
-				if err == nil && engine.Context != nil {
-					break
-				}
-			}
-		}
-		if engine.Context == nil {
-			return engine, make([]*string, 0), errors.New("暂无空闲窗口")
-		}
-	}
+	//if ctx != nil {
+	//	engine.Context = ctx
+	//} else {
+	//	//TODO 需要通过算法获取
+	//	addr, port := "127.0.0.1", 9222
+	//	engine.Context, err = newChromeDpCtx(addr, port)
+	//	if err != nil {
+	//		for i := 0; i < 60; i++ { //重试60次，每次等待一分钟
+	//			//fmt.Println("等待的url", url, err, time.Now())
+	//			<-time.Tick(time.Second * 10)
+	//			engine.Context, err = newChromeDpCtx(addr, port)
+	//			if err == nil && engine.Context != nil {
+	//				break
+	//			}
+	//		}
+	//	}
+	//	if engine.Context == nil {
+	//		return engine, make([]*Page, 0), errors.New("暂无空闲窗口")
+	//	}
+	//}
 
 	//defer func() {
 	//	if err := chromedp.Cancel(engine.Context); err != nil {
@@ -195,7 +219,7 @@ func chromeDpRun(url string, ctx context.Context) (engine *ChromeDpEngine, html 
 	//fmt.Println("run")
 	if err := chromedp.Run(engine.Context, engine.newTask()); err != nil {
 		log.Println("执行失败：", err)
-		return engine, make([]*string, 0), err
+		return engine, make([]*Page, 0), err
 	}
 
 	return engine, engine.Html, nil
@@ -205,40 +229,30 @@ func chromeDpRun(url string, ctx context.Context) (engine *ChromeDpEngine, html 
 func (this *ChromeDpEngine) Close() {
 	chromedp.Cancel(this.Context)
 }
-func (this *ChromeDpEngine) UnLockTargetId() {
-	//fmt.Println(this.Url,this.Context,"解除占用")
-	if this.Context != nil {
-		TargeLock.Lock()
-		defer TargeLock.Unlock()
-		WindNum -= 1
-		chromedp.Cancel(this.Context)
-	}
 
-}
+//func (this *ChromeDpEngine) UnLockTargetId() {
+//	//fmt.Println(this.Url,this.Context,"解除占用")
+//	if this.Context != nil {
+//		TargeLock.Lock()
+//		defer TargeLock.Unlock()
+//		WindNum -= 1
+//		chromedp.Cancel(this.Context)
+//	}
+//
+//}
 
-//获得一个chromdp的context
-func newChromeDpCtx() (ctx context.Context, err error) {
+// 获得一个chromdp的context
+func newChromeDpCtx(addr string, port int) (ctx context.Context, err error) {
 	TargeLock.Lock()
 	defer TargeLock.Unlock()
 
-	//options := []chromedp.ExecAllocatorOption{
-	//	chromedp.Flag("headless", false), // debug使用false  正式使用用true
-	//	chromedp.WindowSize(1280, 1024),  // 调整浏览器大小
-	//}
-	//options = append(chromedp.DefaultExecAllocatorOptions[:], options...)
-	//options = append(options, chromedp.UserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.82 Safari/537.36"))
-	//options = append(options, chromedp.DisableGPU)
-	//options = append(options, chromedp.Flag("ignore-certificate-errors", true))       //忽略错误
-	//options = append(options, chromedp.Flag("blink-settings", "imagesEnabled=false")) //不加载图片
-	////var cancel context.CancelFunc
-	//ctx, _ = chromedp.NewExecAllocator(context.Background(), options...)
-	//ctx, _ = chromedp.NewRemoteAllocator(ctx, "ws://127.0.0.1:9222") //使用远程调试，可以结合下面的容器使用
+	ctx, _ = chromedp.NewRemoteAllocator(CommCTX, fmt.Sprintf("ws://%v:%v", addr, port)) //使用远程调试，可以结合下面的容器使用
 
 	if WindNum >= MaxWind {
 		return nil, errors.New("暂无空闲窗口")
 	}
 	WindNum += 1
-	ctx, _ = chromedp.NewContext(CTX, chromedp.WithLogf(log.Printf)) // 会打开浏览器并且新建一个标签页进行操作
+	ctx, _ = chromedp.NewContext(ctx, chromedp.WithLogf(log.Printf)) // 会打开浏览器并且新建一个标签页进行操作
 	//defer cancel()
 
 	//ctx, _ = chromedp.NewContext(ctx, chromedp.WithLogf(log.Printf), chromedp.WithTargetID("EA3271486ADC09ED0504F3C9FCEE698B")) // WithTargetID可以指定一个标签页进行操作
@@ -248,7 +262,7 @@ func newChromeDpCtx() (ctx context.Context, err error) {
 
 }
 
-//返回一个任务的列队来执行
+// 返回一个任务的列队来执行
 func (this *ChromeDpEngine) newTask() chromedp.Tasks {
 	return chromedp.Tasks{
 		this.toUrl("打开首页", this.Url),
@@ -293,85 +307,102 @@ func (this *ChromeDpEngine) click(name, path string) chromedp.ActionFunc {
 func (this *ChromeDpEngine) toUrl(name, url string) chromedp.ActionFunc {
 	return func(ctx context.Context) (err error) {
 		defer this.handleActionError(name, &err)
-		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 		err = chromedp.Navigate(url).Do(ctx)
 		if err != nil {
-			fmt.Println(name, " err=========", err)
-			return nil
+			fmt.Println(name, " err=========", err, url)
+			return err
 		}
 
-		chromedp.Sleep(1 * time.Second).Do(ctx)
+		//chromedp.Sleep(1 * time.Second).Do(ctx)
 		return nil
 	}
 }
 
-//获取网页内的a标签的 url地址
+// 获取网页内的a标签的 url地址
 func (this *ChromeDpEngine) getHtml(name string) chromedp.ActionFunc {
 	return func(ctx context.Context) (err error) {
 		defer this.handleActionError(name, &err)
-		timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+		timeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 
-		//if !this.Iframe {
-		//	iframeHtml := ""
-		//	//chromedp.EvaluateAsDevTools(`document.getElementById('iframe').contentWindow.document.body.outerHTML;`, &iframeHtml).Do(timeout)
-		//	chromedp.OuterHTML(`document.querySelectorAll("iframe")[0]`, &iframeHtml, chromedp.ByJSPath).Do(timeout)
-		//
-		//	fmt.Println("iframeHtml===================================================================")
-		//	fmt.Println(string(iframeHtml))
-		//}
-		html := ""
+		page := &Page{
+			Url: this.Url,
+		}
+		err = chromedp.OuterHTML("html", &page.Html, chromedp.ByQueryAll).Do(timeout)
+		if err != nil {
+
+			fmt.Println("获取页面错误 err=", err, this.Url)
+		}
 		if !this.Iframe {
-			_, domain := GetDomain(this.Url)
-			var iframes []*cdp.Node
-			timeout1, _ := context.WithTimeout(ctx, 100*time.Millisecond)
-			iframeErr := chromedp.Nodes("iframe", &iframes, chromedp.ByQuery).Do(timeout1)
-			if iframeErr == nil && len(iframes) > 0 {
-				ifHtmls := make([]*string, 0)
-				iframeWin, _ := chromedp.NewContext(CTX, chromedp.WithLogf(log.Printf))
-				defer chromedp.Cancel(iframeWin)
-				for _, v := range iframes {
-					if src, ok := v.Attribute("src"); ok {
-						src = strings.TrimPrefix(src, " ")
-						ifUrl := GetIframeUrl(src, domain)
-						//fmt.Println(src)
-						//fmt.Println(ifUrl)
-
-						ifEngine := &ChromeDpEngine{
-							Context: iframeWin,
-							Url:     ifUrl,
-							Html:    ifHtmls,
-							Iframe:  true,
-						}
-
-						if err := chromedp.Run(ifEngine.Context, ifEngine.newTask()); err != nil {
-							//log.Println("获取iframe，执行失败：", err)
-							continue
-						} else {
-							//fmt.Println("ifhtml====")
-							//fmt.Println(*ifEngine.Html[0])
-							this.Html = append(this.Html, ifEngine.Html...)
-						}
-
-					}
-				}
-			}
 			//chromedp.Sleep(time.Second)
 			location := ""
 			err = chromedp.EvaluateAsDevTools("document.location.href;", &location).Do(timeout)
-			//fmt.Println("location err=", err)
+			if err != nil {
+
+				fmt.Println("location err=", err, location)
+			}
 			this.Location = location
+
+			this.getIframeHtml(ctx)
 		}
 		//fmt.Println("outerhtml")
-		err = chromedp.OuterHTML("html", &html, chromedp.ByQuery).Do(timeout)
-		this.Html = append(this.Html, &html)
+		this.Html = append(this.Html, page)
 		//fmt.Println("html====")
 		//fmt.Println(html)
 
 		return err
 	}
 }
+func (this *ChromeDpEngine) getIframeHtml(ctx context.Context) {
+	var iframes []*cdp.Node
+	timeout1, _ := context.WithTimeout(ctx, 5*time.Second)
+	iframeErr := chromedp.Nodes("iframe", &iframes, chromedp.ByQueryAll).Do(timeout1)
+	if iframeErr == nil && len(iframes) > 0 {
+		ifHtmls := make([]*Page, 0)
+		for _, v := range iframes {
+			//fmt.Println(v.Attribute("src"))
+			if src, ok := v.Attribute("src"); ok {
+				src = strings.TrimPrefix(src, " ")
+				ifUrl := this.GetUrl(src, this.Domain, this.Url)
+				//fmt.Println("ifUrl==", ifUrl)
+				if pageCache, ok := Cache.Get(ifUrl); ok {
+					ifRamePage := &Page{
+						Url: ifUrl,
+					}
+					ifRamePage.Html = fmt.Sprintf("%s", pageCache)
+					this.Html = append(this.Html, ifRamePage)
+				} else {
+					ifEngine := &ChromeDpEngine{
+						Context: this.Context, //iframeWin,
+						Url:     ifUrl,
+						Html:    ifHtmls,
+						Iframe:  true,
+					}
+
+					if err := chromedp.Run(ifEngine.Context, ifEngine.newTask()); err != nil {
+						log.Println("获取iframe，执行失败：", err)
+						continue
+					} else {
+						//fmt.Println("ifhtml====")
+						//fmt.Println(*ifEngine.Html[0])
+						if len(ifEngine.Html) > 0 {
+							this.Html = append(this.Html, ifEngine.Html...)
+							tmp := ifEngine.Html[0].Html
+							//设置一个临时缓存
+							Cache.Set(ifUrl, tmp, time.Duration(time.Minute*10))
+						}
+
+					}
+
+				}
+
+			}
+		}
+	}
+}
+
 func (this *ChromeDpEngine) handleActionError(name string, err *error) {
 	if *err != nil {
 		*err = fmt.Errorf("【%s】失败=>%w", name, *err)
@@ -393,71 +424,147 @@ func (this *ChromeDpEngine) screenShot(name string, path string) chromedp.Action
 	}
 }
 
-//获取iframe地址
-func GetIframeUrl(url, domain string) string {
+// 获取iframe地址
+func (this *ChromeDpEngine) GetUrl(url, domain, thisUrl string) string {
 	//检测字符串是否以指定的前缀开头。
 	if strings.HasPrefix(url, "https://") || strings.HasPrefix(url, "http://") {
 		return url
 	}
-	//删除左边的前缀 .. 或者 .
-	url = strings.TrimPrefix(url, "..")
-	url = strings.TrimPrefix(url, ".")
-	if strings.HasPrefix(url, "/") {
+	if strings.HasPrefix(url, "//") {
+		return "http:" + url
+	}
+	if strings.HasPrefix(url, "/") && url != "/" {
 		return domain + url
 	}
-	return domain + "/" + url
+	if url == "#" || url == "/" || javascriptRex.MatchString(url) {
+		return ""
+	}
+	url = strings.TrimPrefix(url, "./")
+
+	thisUrl = strings.TrimSuffix(thisUrl, "/")
+	path := strings.TrimPrefix(thisUrl, domain)
+	ss := strings.Split(path, "/")
+	//安全相对目录取对于的path
+	if strings.HasPrefix(url, "../") {
+		s := strings.Split(url, "../")
+		if len(s) > len(ss)-2 { //向上返回级数过多
+			return domain + "/" + s[len(s)-1]
+		}
+		newPath := []string{}
+		newPath = append(newPath, ss[:len(ss)-2]...)
+		newPath = append(newPath, s[len(s)-1])
+		return domain + strings.Join(newPath, "/")
+	} else {
+		if len(ss) == 1 && ss[0] == "" {
+			return domain + "/" + url
+		}
+		ss[len(ss)-1] = url
+		return domain + strings.Join(ss, "/")
+	}
+
 }
 
-//同域名的子url 如果是暗链，则需要判断url是否是暗链  checkType 1敏感词 2暗链  3挂马
-func GetUrlsAndCheck(html []*string, doMainTop, doMain, pageUrl string, checkType int) (urls []string, dark_chain map[string]CheckRes, err error) {
+// 同域名的子url 如果是暗链，则需要判断url是否是暗链  checkType 1敏感词 2暗链  3挂马
+// 返回网页内的url地址 和 暗链或者挂马内容
+func (this *ChromeDpEngine) GetUrlsAndCheck(html []*Page, doMainTop, doMain, pageUrl string, checkType int) (urls []string, dark_chain map[string]CheckRes, err error) {
 	urls, dark_chain = []string{}, make(map[string]CheckRes, 0)
 	if len(html) > 0 {
 		for _, v := range html {
-			dom, err := goquery.NewDocumentFromReader(strings.NewReader(*v))
+			dom, err := goquery.NewDocumentFromReader(strings.NewReader(v.Html))
 			if err != nil {
 				return urls, dark_chain, err
 			}
-
+			//页面内容可能来之iframe页面，所有获取url地址时需要根据当前的ifreme域名来判断
+			_, ifRameDoMain := this.GetDomain(v.Url)
 			dom.Find("a").Each(func(i int, selection *goquery.Selection) {
 				if url, ok := selection.Attr("href"); ok {
+
 					url = strings.TrimPrefix(url, " ")
 
-					//fmt.Println(url)
-					//检测字符串是否以指定的前缀开头。
-					if strings.HasPrefix(url, "//") {
-						url = "http:" + url
-					}
-					//删除左边的前缀 .. 或者 .
-					url = strings.TrimPrefix(url, "..")
-					url = strings.TrimPrefix(url, ".")
-					if strings.HasPrefix(url, "/") {
-						url = doMain + url
-					}
-					//判断当前地址是否来着当前域名
-					if checkUrlDomain(url, doMainTop) {
-						urls = append(urls, url)
+					url = this.GetUrl(url, ifRameDoMain, v.Url)
+					if url != "" {
+						//判断当前地址是否来着当前域名
+						if this.checkUrlDomain(url, doMainTop) {
+							urls = append(urls, url)
 
-					} else {
-						//暗链监测a标签
-						if checkType == 2 && checkUrlDarkChain(selection) {
-							//pageUrl页面地址  url=a标签的地址
-							dark_chain[Md5Str(pageUrl+url)] = CheckRes{
-								Url:   pageUrl,
-								Value: url,
+						} else {
+							//暗链监测a标签
+							if checkType == 2 && this.checkUrlDarkChain(selection, url) {
+								//pageUrl页面地址  url=a标签的地址
+								dark_chain[Md5Str(pageUrl+url)] = CheckRes{
+									Url:   pageUrl,
+									Value: url,
+								}
 							}
 						}
 					}
 
 				}
 			})
+			if checkType == 3 { //挂马需要监测css
+
+				//先检查网页内容的css 是否有css挂马
+				cssReg, _ := regexp.Compile(`background-image\s{0,}\:\s{0,}url\([\s\'\"]{1,}javascript\:document\.write.*?\)`)
+				if content := cssReg.FindString(v.Html); content != "" {
+					//pageUrl页面地址
+					dark_chain[Md5Str(pageUrl)] = CheckRes{
+						Url:   pageUrl,
+						Value: content,
+					}
+				}
+				dom.Find("link").Each(func(i int, selection *goquery.Selection) {
+					//获取网页内所有css地址
+					if cssLink, ok := selection.Attr("href"); ok {
+						cssLink = strings.TrimPrefix(cssLink, " ")
+						cssLink = this.GetUrl(cssLink, ifRameDoMain, v.Url)
+						if cssContent, err := this.getCss(cssLink); err == nil && cssContent != "" { //获取css内容
+							if content := cssReg.FindString(cssContent); content != "" {
+								//pageUrl页面地址
+								dark_chain[Md5Str(cssLink)] = CheckRes{
+									Url:   cssLink,
+									Value: content,
+								}
+							}
+						}
+					}
+				})
+			}
 		}
 	}
 
 	return urls, dark_chain, nil
 }
 
-//url去重 并转换成map
-func duplicateRemovalUrl(urls []string, urlMap map[string]struct{}) map[string]struct{} {
+func (this *ChromeDpEngine) getCss(url string) (content string, err error) {
+	r, err := CheckCache(getCssKey+url, func() (interface{}, error) {
+
+		req, err := http.NewRequest(http.MethodGet, url, nil)
+		if err != nil {
+			logs.Error(err)
+			return content, err
+		}
+		//req.Header.Set("User-Agent", teaconst.TeaProductCode+"/"+teaconst.TeaVersion)
+		client := teautils.SharedHttpClient(time.Second * 10)
+		resp, err := client.Do(req)
+		if err != nil {
+			return content, err
+		}
+		defer func() {
+			err = resp.Body.Close()
+			if err != nil {
+				logs.Error(err)
+			}
+		}()
+		data, err := ioutil.ReadAll(resp.Body)
+		content = string(data)
+		return content, err
+
+	}, 600, true)
+	return fmt.Sprintf("%s", r), err
+}
+
+// url去重 并转换成map
+func (this *ChromeDpEngine) duplicateRemovalUrl(urls []string, urlMap map[string]struct{}) map[string]struct{} {
 	if len(urlMap) == 0 {
 		urlMap = make(map[string]struct{}, 0)
 	}
@@ -467,15 +574,22 @@ func duplicateRemovalUrl(urls []string, urlMap map[string]struct{}) map[string]s
 	return urlMap
 }
 
-//检查地址的域名是否是同域名  非相同域名不处理
-func checkUrlDomain(url, doMainTop string) (ok bool) {
+// 检查地址的域名是否是同域名  非相同域名不处理
+func (this *ChromeDpEngine) checkUrlDomain(url, doMainTop string) (ok bool) {
 
 	return strings.Contains(strings.Split(url, "?")[0], doMainTop)
 }
 
-//检查url地址是否有暗链特征
-func checkUrlDarkChain(selection *goquery.Selection) (ok bool) {
-
+// 检查url地址是否有暗链特征
+func (this *ChromeDpEngine) checkUrlDarkChain(selection *goquery.Selection, url string) (ok bool) {
+	//先通过备案来判断是否 是可疑暗链
+	icp := NewIcpCheckSource()
+	icp.GetToken(getIcpTokenKey)
+	icp.Domain, _ = this.GetDomain(url)
+	if _, icpOk, err := icp.Posticp(true); err == nil && !icpOk {
+		return true
+	}
+	//再通过特殊属性判断
 	//非当前域名url  检测是否是暗链  ，通过当前元素或父级元素的样式 判断是否有可以属性
 	content, styleExists := selection.Attr("style")
 	parentContent, parentStyleExists := selection.Parent().Attr("style")
@@ -507,12 +621,12 @@ func checkUrlDarkChain(selection *goquery.Selection) (ok bool) {
 	return false
 }
 
-//检查script内容是否有暗链特征
-func checkScriptDarkChain(html []*string, pageUrl, doMainTop string) (ok bool, dark_chain map[string]CheckRes) {
+// 检查script内容是否有暗链特征
+func (this *ChromeDpEngine) checkScriptDarkChain(html []*Page, pageUrl, doMainTop string) (ok bool, dark_chain map[string]CheckRes) {
 	dark_chain = make(map[string]CheckRes, 0)
 	if len(html) > 0 {
 		for _, v := range html {
-			dom, err := goquery.NewDocumentFromReader(strings.NewReader(*v))
+			dom, err := goquery.NewDocumentFromReader(strings.NewReader(v.Html))
 			if err != nil {
 				return false, dark_chain
 			}
@@ -588,7 +702,7 @@ func checkScriptDarkChain(html []*string, pageUrl, doMainTop string) (ok bool, d
 						return
 					}
 				})
-				if aUrl != "" && !checkUrlDomain(aUrl, doMainTop) { //marquee标签内有a标签且地址不是当前域名  判断marquee标签宽高是否可疑
+				if aUrl != "" && !this.checkUrlDomain(aUrl, doMainTop) { //marquee标签内有a标签且地址不是当前域名  判断marquee标签宽高是否可疑
 					width, widthExists := selection.Attr("width")
 					height, heightExists := selection.Attr("height")
 					if widthExists && heightExists {
@@ -618,7 +732,7 @@ func checkScriptDarkChain(html []*string, pageUrl, doMainTop string) (ok bool, d
 					equiv, equivExists := selection.Attr("http-equiv")
 
 					if equivExists && equiv == "refresh" {
-						if !checkUrlDomain(aUrl, doMainTop) { //地址不是当前域名
+						if !this.checkUrlDomain(aUrl, doMainTop) { //地址不是当前域名
 							//可疑暗链
 							dark_chain[Md5Str(pageUrl+aUrl)] = CheckRes{
 								Url:   pageUrl,
@@ -634,14 +748,14 @@ func checkScriptDarkChain(html []*string, pageUrl, doMainTop string) (ok bool, d
 	return len(dark_chain) > 0, dark_chain
 }
 
-//检查iframe内容是否有挂马特征
-func checkIframeHangingHorse(html []*string, pageUrl, doMainTop string) (ok bool, hangingHorse map[string]CheckRes) {
+// 检查iframe内容是否有挂马特征
+func (this *ChromeDpEngine) checkIframeHangingHorse(html []*Page, pageUrl, doMainTop string) (ok bool, hangingHorse map[string]CheckRes) {
 
 	hangingHorse = make(map[string]CheckRes, 0)
 	if len(html) > 0 {
 		for _, v := range html {
 
-			dom, err := goquery.NewDocumentFromReader(strings.NewReader(*v))
+			dom, err := goquery.NewDocumentFromReader(strings.NewReader(v.Html))
 			if err != nil {
 				return false, hangingHorse
 			}
@@ -654,7 +768,7 @@ func checkIframeHangingHorse(html []*string, pageUrl, doMainTop string) (ok bool
 					srcUrl = url
 				}
 				//有地址并且不是当前域名的地址
-				if srcUrl != "" && !checkUrlDomain(srcUrl, doMainTop) {
+				if srcUrl != "" && !this.checkUrlDomain(srcUrl, doMainTop) {
 					{ //通过标签属性+地址是否同顶级域名 判断是否挂马
 						content, styleExists := selection.Attr("style")
 						parentContent, parentStyleExists := selection.Parent().Attr("style")
@@ -703,7 +817,7 @@ func checkIframeHangingHorse(html []*string, pageUrl, doMainTop string) (ok bool
 					if !hangingOk {
 						icp := NewIcpCheckSource()
 						icp.GetToken(getIcpTokenKey)
-						icp.Domain, _ = GetDomain(srcUrl)
+						icp.Domain, _ = this.GetDomain(srcUrl)
 						if _, icpOk, err := icp.Posticp(true); err == nil && !icpOk {
 							hangingOk = true
 						}
@@ -724,16 +838,16 @@ func checkIframeHangingHorse(html []*string, pageUrl, doMainTop string) (ok bool
 	return len(hangingHorse) > 0, hangingHorse
 }
 
-//当前请求的url，当前请求地址的顶级域名，得到的响应地址
-func checkScriptHangingHorse(domainTop, url, location string) (hangingHorse map[string]CheckRes) {
+// 当前请求的url，当前请求地址的顶级域名，得到的响应地址
+func (this *ChromeDpEngine) checkScriptHangingHorse(domainTop, url, location string) (hangingHorse map[string]CheckRes) {
 	hangingHorse = make(map[string]CheckRes, 0)
 
 	//响应地址的顶级域名和请求地址的顶级域名如果不同，可疑挂马
-	if top, _ := GetDomain(location); top != domainTop {
+	if top, _ := this.GetDomain(location); top != domainTop {
 
 		icp := NewIcpCheckSource()
 		icp.GetToken(getIcpTokenKey)
-		icp.Domain, _ = GetDomain(location)
+		icp.Domain, _ = this.GetDomain(location)
 		if _, icpOk, err := icp.Posticp(true); err == nil && !icpOk {
 			hangingHorse[Md5Str(url+location)] = CheckRes{
 				Url:   url,
@@ -745,8 +859,8 @@ func checkScriptHangingHorse(domainTop, url, location string) (hangingHorse map[
 	return
 }
 
-//通过url地址 获取顶级域名和当前域名
-func GetDomain(url string) (domainTop, domain string) {
+// 通过url地址 获取顶级域名和当前域名
+func (this *ChromeDpEngine) GetDomain(url string) (domainTop, domain string) {
 	resoureUrl := url
 	url = strings.Split(url, "?")[0]
 	url = strings.TrimPrefix(url, "https://")
@@ -776,7 +890,8 @@ func GetDomain(url string) (domainTop, domain string) {
 	return domainTop, strings.Split(resoureUrl, domainTop)[0] + domainTop
 }
 
-/**
+/*
+*
 md5
 */
 func Md5Str(str string) string {
@@ -786,7 +901,7 @@ func Md5Str(str string) string {
 	return md5str
 }
 
-//简化内容  内容太长中间使用省略号
+// 简化内容  内容太长中间使用省略号
 func simplifyContent(content string) string {
 	if len([]byte(content)) < 20 {
 		return content
@@ -799,4 +914,102 @@ func simplifyContent(content string) string {
 		content = strings.Join(contentLi, "")
 	}
 	return content
+}
+
+// 申请浏览器窗口
+func getWindowCtx() (ctxs chan context.Context, err error) {
+
+	if len(chromeHost) == 0 { //为配置浏览器 尝试使用本地浏览器
+		ip, port := "127.0.0.1", "9222"
+		if checkChromePort(ip, port) {
+			ctxBash, _ := chromedp.NewRemoteAllocator(CommCTX, fmt.Sprintf("ws://%v:%v", ip, port)) //使用远程调试，可以结合下面的容器使用
+			openWindow, err := GetOpenWindowsNum(ctxBash)
+			if err != nil {
+				return nil, err
+			}
+			n := 4                               //默认最多窗口4个
+			if openWindow > runtime.NumCPU()*4 { //已经开启的窗口数是机器cpu的4倍数量 暂时不分配窗口
+				return nil, errors.New("远程浏览器窗口分配过多，暂无空闲窗口")
+			} else if openWindow > runtime.NumCPU()*2 { //已经开启的窗口数是机器cpu的两倍数量，为了减小负载 只分配两个窗口
+				n = 2
+			}
+			ctxs = make(chan context.Context, n)
+			for i := 1; i <= n; i++ { //分配窗口
+				ctx, _ := chromedp.NewContext(ctxBash, chromedp.WithLogf(log.Printf))
+				ctxs <- ctx
+			}
+			return ctxs, nil
+		} else {
+			return nil, errors.New("远程浏览器不可用")
+		}
+
+	}
+
+	WinLock.Lock()
+	defer WinLock.Unlock()
+	r, n := new(WeightRoundLoadBalance), 0
+	//有分配远程浏览器  使用远程浏览器资源
+	for _, v := range chromeHost {
+		//先检查端口是否可用
+		if checkChromePort(v.Addr, strconv.Itoa(v.Port)) {
+			ctxBash, _ := chromedp.NewRemoteAllocator(CommCTX, fmt.Sprintf("ws://%v:%v", v.Addr, strconv.Itoa(v.Port))) //使用远程调试，可以结合下面的容器使用
+			openWindow, err := GetOpenWindowsNum(ctxBash)
+			if err == nil {
+				fmt.Println("获取窗口数err", err)
+				if openWindow > v.CpuNum*4 { //浏览器打开窗口数超过cpu核心4倍 直接跳过
+					continue
+				}
+				if openWindow > v.CpuNum*2 { //浏览器打开窗口数超过cpu核心2倍 记录下来
+					n++
+				}
+				currentWeight := v.CpuNum*4 - openWindow
+
+				r.Add(v.Addr, v.CpuNum*4, currentWeight, v.Port)
+			}
+			//chromedp.Cancel(ctxBash)
+		}
+	}
+	if len(r.list) == 0 {
+		return nil, errors.New("暂无空闲浏览器")
+	}
+	n = len(chromeHost)*2 - n
+	if n < 1 {
+		n = 1
+	}
+	//超过一半的浏览器负载超过50%
+	ctxs = make(chan context.Context, n)
+	for i := 1; i <= n; i++ {
+		if tmp := r.Get(); tmp != nil {
+			ctxBash, _ := chromedp.NewRemoteAllocator(CommCTX, fmt.Sprintf("ws://%v:%v", tmp.Addr, strconv.Itoa(tmp.Port))) //使用远程调试，可以结合下面的容器使用
+			ctx, _ := chromedp.NewContext(ctxBash, chromedp.WithLogf(log.Printf))
+			ctxs <- ctx
+		}
+	}
+	return ctxs, nil
+}
+
+// 获取打开的窗口数
+func GetOpenWindowsNum(ctx context.Context) (num int, err error) {
+	ctx, _ = chromedp.NewContext(ctx, chromedp.WithLogf(log.Printf))
+	defer chromedp.Cancel(ctx)
+	targets, err := chromedp.Targets(ctx)
+	if err != nil {
+		return 0, err
+	}
+	for _, v := range targets {
+		//fmt.Println(*v)
+		if v.Type == "page" {
+			num++
+		}
+	}
+	return num, nil
+}
+
+// 关闭窗口
+func CloseWindow(ctxs chan context.Context) {
+	num := len(ctxs)
+	for i := 0; i < num; i++ {
+		chromedp.Cancel(<-ctxs)
+	}
+
 }

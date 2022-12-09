@@ -1,6 +1,7 @@
 package agents
 
 import (
+	"context"
 	"errors"
 	"github.com/TeaWeb/build/internal/teaconfigs/forms"
 	"github.com/TeaWeb/build/internal/teaconfigs/notices"
@@ -76,9 +77,8 @@ func (this *DarkChainCheckSource) Execute(params map[string]string) (value inter
 	}
 
 	before := time.Now()
-
-	if !checkChromePort() {
-		err = errors.New("chromeDp 未运行")
+	ctxs, err := getWindowCtx()
+	if err != nil {
 		return maps.Map{
 			"cost":     0,
 			"status":   0,
@@ -88,8 +88,10 @@ func (this *DarkChainCheckSource) Execute(params map[string]string) (value inter
 			"number":   0,
 		}, err
 	}
-	engine, html, err := chromeDpRun(this.URL, nil)
-	defer engine.UnLockTargetId()
+	engine, page, err := chromeDpRun(this.URL, <-ctxs)
+	ctxs <- engine.Context
+	defer CloseWindow(ctxs)
+	//defer engine.UnLockTargetId()
 	if err != nil {
 		value = maps.Map{
 			"cost":     time.Since(before).Seconds(),
@@ -101,16 +103,16 @@ func (this *DarkChainCheckSource) Execute(params map[string]string) (value inter
 		}
 		return value, err
 	}
-	domainTop, domain := GetDomain(this.URL)
+	engine.DomainTop, engine.Domain = engine.GetDomain(this.URL)
 	//监测结果
 	checkRes := map[string]CheckRes{}
 	//script标签和其他标签 进行暗链可疑监测
-	if ok, res := checkScriptDarkChain(html, domain, domainTop); ok && len(res) > 0 {
+	if ok, res := engine.checkScriptDarkChain(page, engine.Domain, engine.DomainTop); ok && len(res) > 0 {
 		for k, v := range res {
 			checkRes[k] = v
 		}
 	}
-	Urls, dark_res, err := GetUrlsAndCheck(html, domainTop, domain, this.URL, 2)
+	Urls, dark_res, err := engine.GetUrlsAndCheck(page, engine.DomainTop, engine.Domain, this.URL, 2)
 	if len(dark_res) > 0 {
 		//url中可疑暗链
 		for k, v := range dark_res {
@@ -129,11 +131,11 @@ func (this *DarkChainCheckSource) Execute(params map[string]string) (value inter
 		newUrlLock = &sync.Mutex{}
 		resLock    = &sync.Mutex{}
 		wg         = &sync.WaitGroup{}
-		chMax      = make(chan struct{}, 1) //浏览器窗口数
+		//chMax      = make(chan struct{}, 1) //浏览器窗口数
 	)
 LOOP:
 	newUrls, urlMap = []string{}, map[string]struct{}{} //重置
-	urlMap = duplicateRemovalUrl(Urls, urlMap)
+	urlMap = engine.duplicateRemovalUrl(Urls, urlMap)
 	//fmt.Println("执行次数  levelOn=", levelOn)
 	//下探等级大于等于当前的等级  并且 需要请求的url地址不为空
 	if level >= levelOn && len(urlMap) > 0 {
@@ -151,22 +153,22 @@ LOOP:
 			}
 			urlLock.Unlock()
 
-			chMax <- struct{}{}
+			winCtx := <-ctxs
 			wg.Add(1)
-			go func(v1 string) {
+			go func(ctx context.Context, v1 string) {
 				defer func() {
+					ctxs <- ctx
 					wg.Done()
-					<-chMax
 				}()
 
 				//fmt.Println("url == ", v1, "level==", levelOn)
 
-				_, subHtml, err := chromeDpRun(v1, engine.Context)
+				_, subHtml, err := chromeDpRun(v1, ctx)
 				if err != nil {
 					return
 				}
 				if level > levelOn { //满足继续下探  才收集下级url地址
-					new_urls, dark_res2, err := GetUrlsAndCheck(subHtml, domainTop, domain, v1, 2)
+					new_urls, dark_res2, err := engine.GetUrlsAndCheck(subHtml, engine.DomainTop, engine.Domain, v1, 2)
 					//fmt.Println("new_urls==", new_urls)
 					if err == nil {
 						newUrlLock.Lock()
@@ -183,14 +185,14 @@ LOOP:
 					}
 				}
 				//script标签和其他标签 进行暗链可疑监测
-				if ok, res := checkScriptDarkChain(subHtml, v1, domainTop); ok && len(res) > 0 {
+				if ok, res := engine.checkScriptDarkChain(subHtml, v1, engine.DomainTop); ok && len(res) > 0 {
 					resLock.Lock()
 					for k, v := range res {
 						checkRes[k] = v
 					}
 					resLock.Unlock()
 				}
-			}(k1)
+			}(winCtx, k1)
 		}
 		wg.Wait()
 

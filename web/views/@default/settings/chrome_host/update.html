@@ -1,0 +1,25 @@
+{$layout}
+
+<h3>编辑爬虫浏览器 </h3>
+<form class="ui form" data-tea-action=".update">
+    <table class="ui table selectable definition">
+        <tr>
+            <td class="title">IP地址</td>
+            <td><input type="text" name="addr" :value="addr" maxlength="20"/></td>
+        </tr>
+        <tr>
+            <td>端口</td>
+            <td>
+                <input type="text" name="port" :value="port" placeholder="默认9222" maxlength="20"/>
+            </td>
+        </tr>
+        <tr>
+            <td>cpu数量</td>
+            <td>
+                <input type="text" name="cpuNum" :value="cpu_num" placeholder="主机cpu数量" maxlength="20"/>
+            </td>
+        </tr>
+    </table>
+    <input type="hidden" name="id" :value="id">
+    <button class="ui button primary" type="submit">保存</button>
+</form>

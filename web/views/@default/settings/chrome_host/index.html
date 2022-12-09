@@ -1,0 +1,29 @@
+{$layout}
+
+
+
+<h3> <a href="/settings/chrome_host/update">添加</a> </h3>
+<table class="ui table selectable" v-if="files.length > 0">
+    <thead>
+    <tr>
+        <th>地址</th>
+        <th>端口</th>
+        <th>cpu数量</th>
+        <th>当前开启窗口数量</th>
+        <th class="three op">操作</th>
+    </tr>
+    </thead>
+    <tr v-for="file in files">
+        <td>{{file.addr}}<br/>
+        </td>
+        <td>{{file.port}}</td>
+        <td>{{file.cpu_num}}</td>
+        <td>{{file.window}}</td>
+        <td>
+            <a  :href="'/settings/chrome_host/update?id=' + file.id" title="编辑">编辑</a>
+            <a  href="" @click.prevent="deleteChrome(file.id)" title="删除">删除</a>
+        </td>
+    </tr>
+</table>
+
+<span v-if="files.length ==0">暂无数据</span>

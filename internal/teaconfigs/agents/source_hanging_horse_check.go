@@ -2,11 +2,13 @@ package agents
 
 import (
 	"errors"
+	"fmt"
 	"github.com/TeaWeb/build/internal/teaconfigs/forms"
 	"github.com/TeaWeb/build/internal/teaconfigs/notices"
 	"github.com/TeaWeb/build/internal/teaconfigs/shared"
 	"github.com/TeaWeb/build/internal/teaconfigs/widgets"
 	"github.com/iwind/TeaGo/maps"
+	"golang.org/x/net/context"
 	"strconv"
 	"strings"
 	"sync"
@@ -68,8 +70,20 @@ func (this *HangingHouseCheckSource) Execute(params map[string]string) (value in
 	//var body io.Reader = nil
 
 	before := time.Now()
-	if !checkChromePort() {
-		err = errors.New("chromeDp 未运行")
+	//if !checkChromePort("127.0.0.1", "9222") {
+	//	err = errors.New("chromeDp 未运行")
+	//	return maps.Map{
+	//		"cost":     0,
+	//		"status":   0,
+	//		"list":     make([]CheckRes, 0),
+	//		"scanList": "",
+	//		"scanNum":  0,
+	//		"number":   0,
+	//	}, err
+	//}
+	//获取窗口
+	ctxs, err := getWindowCtx()
+	if err != nil {
 		return maps.Map{
 			"cost":     0,
 			"status":   0,
@@ -79,8 +93,10 @@ func (this *HangingHouseCheckSource) Execute(params map[string]string) (value in
 			"number":   0,
 		}, err
 	}
-	engine, html, err := chromeDpRun(this.URL, nil)
-	defer engine.UnLockTargetId()
+	engine, page, err := chromeDpRun(this.URL, <-ctxs)
+	ctxs <- engine.Context
+	//defer engine.UnLockTargetId()
+	defer CloseWindow(ctxs)
 	if err != nil {
 		value = maps.Map{
 			"cost":     time.Since(before).Seconds(),
@@ -92,17 +108,25 @@ func (this *HangingHouseCheckSource) Execute(params map[string]string) (value in
 		}
 		return value, err
 	}
-	domainTop, domain := GetDomain(this.URL)
-	Urls, _, err := GetUrlsAndCheck(html, domainTop, domain, this.URL, 3)
+	fmt.Println("首页耗时", time.Since(before))
+	engine.DomainTop, engine.Domain = engine.GetDomain(this.URL)
+	//fmt.Println(engine.DomainTop, engine.Domain)
 	//监测结果
 	checkRes := map[string]CheckRes{}
-	if ok, res := checkIframeHangingHorse(html, this.URL, domainTop); ok && len(res) > 0 {
+	Urls, checkCssRes, err := engine.GetUrlsAndCheck(page, engine.DomainTop, engine.Domain, this.URL, 3)
+	//fmt.Println(Urls, err)
+	if len(checkCssRes) > 0 {
+		for k, v := range checkCssRes { //css挂马
+			checkRes[k] = v
+		}
+	}
+	if ok, res := engine.checkIframeHangingHorse(page, this.URL, engine.DomainTop); ok && len(res) > 0 {
 		for k, v := range res {
 			checkRes[k] = v
 		}
 	}
 	if engine.Location != "" && engine.Location != "chrome-error://chromewebdata/" {
-		if scriptHanging := checkScriptHangingHorse(domainTop, this.URL, engine.Location); len(scriptHanging) > 0 {
+		if scriptHanging := engine.checkScriptHangingHorse(engine.DomainTop, this.URL, engine.Location); len(scriptHanging) > 0 {
 			for k, v := range scriptHanging {
 				checkRes[k] = v
 			}
@@ -120,11 +144,11 @@ func (this *HangingHouseCheckSource) Execute(params map[string]string) (value in
 		newUrlLock = &sync.Mutex{}
 		resLock    = &sync.Mutex{}
 		wg         = &sync.WaitGroup{}
-		chMax      = make(chan struct{}, 1) //浏览器窗口数
+		//chMax      = make(chan struct{}, 1) //浏览器窗口数
 	)
 LOOP:
 	newUrls, urlMap = []string{}, map[string]struct{}{} //重置
-	urlMap = duplicateRemovalUrl(Urls, urlMap)
+	urlMap = engine.duplicateRemovalUrl(Urls, urlMap)
 	//fmt.Println("执行次数  levelOn=", levelOn)
 	//下探等级大于等于当前的等级  并且 需要请求的url地址不为空
 	if level >= levelOn && len(urlMap) > 0 {
@@ -142,22 +166,27 @@ LOOP:
 			}
 			urlLock.Unlock()
 
-			chMax <- struct{}{}
+			//chMax <- struct{}{}
+			winCtx := <-ctxs
 			wg.Add(1)
-			go func(v1 string) {
+			go func(ctx context.Context, v1 string) {
 				defer func() {
+					ctxs <- ctx
 					wg.Done()
-					<-chMax
 				}()
 
 				//fmt.Println("url == ", v1, "level==", levelOn)
-
-				engineSub, subHtml, err := chromeDpRun(v1, engine.Context)
+				before1 := time.Now()
+				engineSub, subHtml, err := chromeDpRun(v1, ctx)
 				if err != nil {
+					fmt.Println("子页面err ", err)
+
 					return
 				}
+				fmt.Println("子页面耗时", time.Since(before1), v1)
+
 				if level > levelOn { //满足继续下探  才收集下级url地址
-					new_urls, _, err := GetUrlsAndCheck(subHtml, domainTop, domain, v1, 3)
+					new_urls, checkCssResSub, err := engine.GetUrlsAndCheck(subHtml, engine.DomainTop, engine.Domain, v1, 3)
 					//fmt.Println("new_urls==", new_urls)
 					if err == nil {
 						newUrlLock.Lock()
@@ -165,17 +194,26 @@ LOOP:
 						newUrlLock.Unlock()
 
 					}
-				}
+					if len(checkCssResSub) > 0 {
+						resLock.Lock()
+						for k, v := range checkCssResSub { //css挂马
+							checkRes[k] = v
+						}
+						resLock.Unlock()
+					}
 
-				if ok, res := checkIframeHangingHorse(subHtml, v1, domainTop); ok && len(res) > 0 {
+				}
+				//检测 iframe挂马
+				if ok, res := engine.checkIframeHangingHorse(subHtml, v1, engine.DomainTop); ok && len(res) > 0 {
 					resLock.Lock()
 					for k, v := range res {
 						checkRes[k] = v
 					}
 					resLock.Unlock()
 				}
+				//检测script挂马
 				if engineSub.Location != "" && engineSub.Location != "chrome-error://chromewebdata/" {
-					if scriptHanging := checkScriptHangingHorse(domainTop, v1, engineSub.Location); len(scriptHanging) > 0 {
+					if scriptHanging := engine.checkScriptHangingHorse(engine.DomainTop, v1, engineSub.Location); len(scriptHanging) > 0 {
 						resLock.Lock()
 						for k, v := range scriptHanging {
 							checkRes[k] = v
@@ -183,7 +221,7 @@ LOOP:
 						resLock.Unlock()
 					}
 				}
-			}(k1)
+			}(winCtx, k1)
 		}
 		wg.Wait()
 

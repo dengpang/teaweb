@@ -64,6 +64,7 @@ func (this *Helper) BeforeAction(action *actions.ActionObject) {
 
 			// 敏感词管理
 			menu.Add("敏感词管理", "", "/settings/keyword", action.Spec.HasClassPrefix("keyword."))
+			menu.Add("爬虫管理", "", "/settings/chrome_host", action.Spec.HasClassPrefix("chrome."))
 		}
 
 		//menu.Add("检查版本更新", "", "/settings/update", action.Spec.HasClassPrefix("update."))

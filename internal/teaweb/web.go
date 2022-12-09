@@ -52,6 +52,7 @@ import (
 	_ "github.com/TeaWeb/build/internal/teaweb/actions/default/search"
 	_ "github.com/TeaWeb/build/internal/teaweb/actions/default/settings"
 	_ "github.com/TeaWeb/build/internal/teaweb/actions/default/settings/backup"
+	_ "github.com/TeaWeb/build/internal/teaweb/actions/default/settings/chrome_host"
 	_ "github.com/TeaWeb/build/internal/teaweb/actions/default/settings/cluster"
 	_ "github.com/TeaWeb/build/internal/teaweb/actions/default/settings/database"
 	_ "github.com/TeaWeb/build/internal/teaweb/actions/default/settings/keyword"

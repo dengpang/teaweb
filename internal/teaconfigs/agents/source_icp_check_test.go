@@ -3,6 +3,7 @@ package agents
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"testing"
 	"time"
 )
@@ -15,9 +16,9 @@ func TestCheck(t *testing.T) {
 	fmt.Println(err)
 
 	time.Sleep(time.Second * 2)
-	v, err = s.Execute(nil)
-	fmt.Println(v)
-	fmt.Println(err)
+	//v, err = s.Execute(nil)
+	//fmt.Println(v)
+	//fmt.Println(err)
 
 }
 
@@ -29,4 +30,12 @@ func TestJson(t *testing.T) {
 	fmt.Println(e)
 	fmt.Println(js)
 
+}
+
+func Test_rand(t *testing.T) {
+	rand.Seed(time.Now().UnixNano())
+	for i := 0; i < 10; i++ {
+		// 生成0～99的随机数
+		fmt.Println(rand.Intn(255))
+	}
 }

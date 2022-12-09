@@ -1,6 +1,7 @@
 package agents
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/TeaWeb/build/internal/teaconfigs/forms"
@@ -105,8 +106,8 @@ func (this *KeywordCheckSource) Execute(params map[string]string) (value interfa
 	}
 
 	before := time.Now()
-	if !checkChromePort() {
-		err = errors.New("chromeDp 未运行")
+	ctxs, err := getWindowCtx()
+	if err != nil {
 		return maps.Map{
 			"cost":       0,
 			"status":     0,
@@ -117,8 +118,12 @@ func (this *KeywordCheckSource) Execute(params map[string]string) (value interfa
 			"cate":       []Cates{},
 		}, err
 	}
-	engine, html, err := chromeDpRun(this.URL, nil)
-	defer engine.UnLockTargetId()
+	//fmt.Println("窗口数==", len(ctxs))
+	engine, page, err := chromeDpRun(this.URL, <-ctxs)
+	ctxs <- engine.Context
+	defer CloseWindow(ctxs)
+	//defer engine.UnLockTargetId()
+	//fmt.Println(page)
 	if err != nil {
 		value = maps.Map{
 			"cost":       time.Since(before).Seconds(),
@@ -133,13 +138,13 @@ func (this *KeywordCheckSource) Execute(params map[string]string) (value interfa
 	}
 	//监测结果
 	checkRes := map[string]CheckRes{}
-	if ok, res := this.MatchKeyword(this.URL, html); ok && len(res) > 0 {
+	if ok, res := this.MatchKeyword(this.URL, page); ok && len(res) > 0 {
 		for k, v := range res {
 			checkRes[k] = v
 		}
 	}
-	domainTop, domain := GetDomain(this.URL)
-	Urls, _, err := GetUrlsAndCheck(html, domainTop, domain, this.URL, 1)
+	engine.DomainTop, engine.Domain = engine.GetDomain(this.URL)
+	Urls, _, err := engine.GetUrlsAndCheck(page, engine.DomainTop, engine.Domain, this.URL, 1)
 	//已经请求过的url
 	urlExistsMap := map[string]struct{}{
 		this.URL: {},
@@ -152,12 +157,12 @@ func (this *KeywordCheckSource) Execute(params map[string]string) (value interfa
 		newUrlLock = &sync.Mutex{}
 		resLock    = &sync.Mutex{}
 		wg         = &sync.WaitGroup{}
-		chMax      = make(chan struct{}, 1) //浏览器窗口数
+		//chMax      = make(chan struct{}, 1) //浏览器窗口数
 	)
 	//fmt.Println("=========================loop")
 LOOP:
 	newUrls, urlMap = []string{}, map[string]struct{}{} //重置
-	urlMap = duplicateRemovalUrl(Urls, urlMap)
+	urlMap = engine.duplicateRemovalUrl(Urls, urlMap)
 	//fmt.Println("执行次数  levelOn=", levelOn)
 	//下探等级大于等于当前的等级  并且 需要请求的url地址不为空
 	if level >= levelOn && len(urlMap) > 0 {
@@ -175,23 +180,23 @@ LOOP:
 			}
 			urlLock.Unlock()
 
-			chMax <- struct{}{}
+			winCtx := <-ctxs
 			wg.Add(1)
-			go func(v1 string) {
+			go func(ctx context.Context, v1 string) {
 				defer func() {
+					ctxs <- ctx
 					wg.Done()
-					<-chMax
 				}()
 
 				//fmt.Println("url == ", v1, "level==", levelOn)
 
-				_, subHtml, err := chromeDpRun(v1, engine.Context)
+				_, subHtml, err := chromeDpRun(v1, ctx)
 				//defer en.Close()
 				if err != nil {
 					return
 				}
 				if level > levelOn { //满足继续下探  才收集下级url地址
-					new_urls, _, err := GetUrlsAndCheck(subHtml, domainTop, domain, v1, 1)
+					new_urls, _, err := engine.GetUrlsAndCheck(subHtml, engine.DomainTop, engine.Domain, v1, 1)
 					//fmt.Println("new_urls==", new_urls)
 					if err == nil {
 						newUrlLock.Lock()
@@ -208,7 +213,7 @@ LOOP:
 					}
 					resLock.Unlock()
 				}
-			}(k1)
+			}(winCtx, k1)
 		}
 		wg.Wait()
 
@@ -272,8 +277,8 @@ LOOP:
 	return
 }
 
-//匹配敏感词
-func (this *KeywordCheckSource) MatchKeyword(url string, s []*string) (ok bool, keyword map[string]CheckRes) {
+// 匹配敏感词
+func (this *KeywordCheckSource) MatchKeyword(url string, s []*Page) (ok bool, keyword map[string]CheckRes) {
 	keyword = make(map[string]CheckRes, 0)
 	if len(this.KeywordList) > 0 {
 		//regexp.Compile(`\\\^\$\*\+\?\{\}\.\[\]\(\)\-\|`)
@@ -297,7 +302,7 @@ func (this *KeywordCheckSource) MatchKeyword(url string, s []*string) (ok bool, 
 				reg := regexp.MustCompile(key)
 				if len(s) > 0 {
 					for _, html := range s {
-						if reg.Match([]byte(*html)) {
+						if reg.Match([]byte(html.Html)) {
 							if checkRes, ok := keyword[Md5Str(url+cateName)]; ok {
 								keyword[Md5Str(url+cateName)] = CheckRes{
 									Url:    url,

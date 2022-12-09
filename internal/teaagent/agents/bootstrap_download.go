@@ -132,6 +132,13 @@ func downloadConfig() error {
 		// 监控项数据
 		scheduleItems()
 	}
-
+	{ //初始化远程浏览器地址
+		//agent.ChromeHost
+		chHost := []*agents.ChromeHost{}
+		if len(agent.ChromeHost) > 0 {
+			chHost = agent.ChromeHost
+		}
+		agents.InitChrome(chHost)
+	}
 	return nil
 }

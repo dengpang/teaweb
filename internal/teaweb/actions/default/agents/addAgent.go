@@ -2,6 +2,7 @@ package agents
 
 import (
 	"github.com/TeaWeb/build/internal/teaconfigs/agents"
+	"github.com/TeaWeb/build/internal/teaconfigs/chrome_host"
 	"github.com/TeaWeb/build/internal/teaweb/actions/default/agents/agentutils"
 	"github.com/iwind/TeaGo/actions"
 	"github.com/iwind/TeaGo/logs"
@@ -65,12 +66,27 @@ func (this *AddAgentAction) RunPost(params struct {
 	agent.CheckDisconnections = params.CheckDisconnections
 	agent.AutoUpdates = params.AutoUpdates
 	agent.AddDefaultApps()
+
+	ch := chrome_host.SharedChromeHostConfig()
+	chromehHost := []*agents.ChromeHost{}
+	if len(ch.List) > 0 {
+		for _, v := range ch.List {
+			chromehHost = append(chromehHost, &agents.ChromeHost{
+				Addr:   v.Addr,
+				CpuNum: v.CpuNum,
+				Port:   v.Port,
+			})
+		}
+
+	}
+	agent.ChromeHost = chromehHost
 	err = agent.Save()
 	if err != nil {
 		this.Fail("保存失败：" + err.Error())
 	}
 
 	agentList.AddAgent(agent.Filename())
+
 	err = agentList.Save()
 	if err != nil {
 		this.Fail("保存失败：" + err.Error())

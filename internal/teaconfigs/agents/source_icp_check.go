@@ -9,18 +9,12 @@ import (
 	"github.com/TeaWeb/build/internal/teaconfigs/notices"
 	"github.com/TeaWeb/build/internal/teautils"
 	"github.com/iwind/TeaGo/maps"
-	"golang.org/x/sync/singleflight"
+	"math/rand"
 
 	"io/ioutil"
 	"net/http"
 	"strconv"
 	"time"
-)
-
-var (
-	lockG          = &singleflight.Group{}
-	getIcpTokenKey = "check_getIcpTokenKey"
-	Cache          = teautils.New(5*time.Minute, 10*time.Minute)
 )
 
 // Ping
@@ -62,7 +56,8 @@ func (this *IcpCheckSource) Execute(params map[string]string) (value interface{}
 
 	// 去除http|https|ftp
 	//host = regexp.MustCompile(`^(?i)(http|https|ftp)://`).ReplaceAllLiteralString(host, "")
-	this.Domain, _ = GetDomain(this.Domain)
+	engine := &ChromeDpEngine{}
+	this.Domain, _ = engine.GetDomain(this.Domain)
 	if len(this.Domain) == 0 {
 		err = errors.New("'host' should not be empty")
 		return maps.Map{
@@ -173,9 +168,9 @@ func (this *IcpCheckSource) Posticp(needCache bool) (value interface{}, ok bool,
 		req.Header.Set("Origin", "https://beian.miit.gov.cn/")
 		req.Header.Set("Referer", "https://beian.miit.gov.cn/")
 		req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36")
-		//req.Header.Set("CLIENT-IP", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36")
-		//req.Header.Set("X-FORWARDED-FOR", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36")
-
+		ip := fmt.Sprintf("101.%v.%v.%v", rand.Intn(255), rand.Intn(255), rand.Intn(255))
+		req.Header.Set("CLIENT-IP", ip)
+		req.Header.Set("X-FORWARDED-FOR", ip)
 		client := teautils.SharedHttpClient(5 * time.Second)
 		resp, err := client.Do(req)
 		if err != nil {

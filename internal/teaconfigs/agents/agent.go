@@ -1,6 +1,7 @@
 package agents
 
 import (
+	"github.com/TeaWeb/build/internal/teaconfigs/chrome_host"
 	"github.com/TeaWeb/build/internal/teaconfigs/notices"
 	"github.com/TeaWeb/build/internal/teaconfigs/shared"
 	"github.com/TeaWeb/build/internal/teaconfigs/widgets"
@@ -36,6 +37,7 @@ type AgentConfig struct {
 	Simple              bool         `yaml:"simple" json:"simple"`                           //简单模式 监控项只添加 cpu，内存，磁盘
 
 	NoticeSetting map[notices.NoticeLevel][]*notices.NoticeReceiver `yaml:"noticeSetting" json:"noticeSetting"`
+	ChromeHost    []*ChromeHost                                     `yaml:"chromeHost" json:"chromeHost"` //无头远程浏览器信息
 }
 
 // 获取新对象
@@ -691,4 +693,21 @@ func (this *AgentConfig) MatchKeyword(keyword string) (matched bool, name string
 		return
 	}
 	return
+}
+
+// 更新agent的远程浏览器
+func (this *AgentConfig) UpdateChrome() {
+	ch := chrome_host.SharedChromeHostConfig()
+	chromehHost := []*ChromeHost{}
+	if len(ch.List) > 0 {
+		for _, v := range ch.List {
+			chromehHost = append(chromehHost, &ChromeHost{
+				Addr:   v.Addr,
+				CpuNum: v.CpuNum,
+				Port:   v.Port,
+			})
+		}
+
+	}
+	this.ChromeHost = chromehHost
 }
