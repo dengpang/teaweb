@@ -106,7 +106,17 @@ func (this *KeywordCheckSource) Execute(params map[string]string) (value interfa
 	}
 
 	before := time.Now()
-	ctxs, err := getWindowCtx()
+	var ctxs chan context.Context
+	for time.Now().Before(before.Add(2 * time.Hour)) {
+		//任务并发执行的时候 一定会出现获取窗口达到上限，这里使用两小时内重复获取
+		s := GenRandSecond()
+		ctxs, err = getWindowCtx()
+		if err != nil {
+			<-time.Tick(time.Second * time.Duration(s))
+		} else {
+			break
+		}
+	}
 	if err != nil {
 		return maps.Map{
 			"cost":       0,

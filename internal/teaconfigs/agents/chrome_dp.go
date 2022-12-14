@@ -10,6 +10,7 @@ import (
 	"github.com/iwind/TeaGo/logs"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net"
 	"net/http"
 	"regexp"
@@ -928,9 +929,9 @@ func getWindowCtx() (ctxs chan context.Context, err error) {
 				return nil, err
 			}
 			n := 4                               //默认最多窗口4个
-			if openWindow > runtime.NumCPU()*4 { //已经开启的窗口数是机器cpu的4倍数量 暂时不分配窗口
+			if openWindow > runtime.NumCPU()*8 { //已经开启的窗口数是机器cpu的8倍数量 暂时不分配窗口
 				return nil, errors.New("远程浏览器窗口分配过多，暂无空闲窗口")
-			} else if openWindow > runtime.NumCPU()*2 { //已经开启的窗口数是机器cpu的两倍数量，为了减小负载 只分配两个窗口
+			} else if openWindow > runtime.NumCPU()*4 { //已经开启的窗口数是机器cpu的4倍数量，为了减小负载 只分配4个窗口
 				n = 2
 			}
 			ctxs = make(chan context.Context, n)
@@ -955,16 +956,16 @@ func getWindowCtx() (ctxs chan context.Context, err error) {
 			ctxBash, _ := chromedp.NewRemoteAllocator(CommCTX, fmt.Sprintf("ws://%v:%v", v.Addr, strconv.Itoa(v.Port))) //使用远程调试，可以结合下面的容器使用
 			openWindow, err := GetOpenWindowsNum(ctxBash)
 			if err == nil {
-				fmt.Println("获取窗口数err", err)
-				if openWindow > v.CpuNum*4 { //浏览器打开窗口数超过cpu核心4倍 直接跳过
+				//fmt.Println("获取窗口数err", err)
+				if openWindow > v.CpuNum*8 { //浏览器打开窗口数超过cpu核心8倍 直接跳过
 					continue
 				}
-				if openWindow > v.CpuNum*2 { //浏览器打开窗口数超过cpu核心2倍 记录下来
+				if openWindow > v.CpuNum*4 { //浏览器打开窗口数超过cpu核心4倍 记录下来
 					n++
 				}
-				currentWeight := v.CpuNum*4 - openWindow
+				currentWeight := v.CpuNum*8 - openWindow
 
-				r.Add(v.Addr, v.CpuNum*4, currentWeight, v.Port)
+				r.Add(v.Addr, v.CpuNum*8, currentWeight, v.Port)
 			}
 			//chromedp.Cancel(ctxBash)
 		}
@@ -1012,4 +1013,12 @@ func CloseWindow(ctxs chan context.Context) {
 		chromedp.Cancel(<-ctxs)
 	}
 
+}
+
+//等待窗口随机暂停60-100秒
+func GenRandSecond() int {
+	source := rand.NewSource(time.Now().UnixNano())
+	var max int64 = 100
+	var min int64 = 60
+	return int(rand.New(source).Int63n(max-min) + min)
 }

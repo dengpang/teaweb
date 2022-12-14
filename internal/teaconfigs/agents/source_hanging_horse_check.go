@@ -82,7 +82,17 @@ func (this *HangingHouseCheckSource) Execute(params map[string]string) (value in
 	//	}, err
 	//}
 	//获取窗口
-	ctxs, err := getWindowCtx()
+	var ctxs chan context.Context
+	for time.Now().Before(before.Add(2 * time.Hour)) {
+		//任务并发执行的时候 一定会出现获取窗口达到上限，这里使用两小时内重复获取
+		s := GenRandSecond()
+		ctxs, err = getWindowCtx()
+		if err != nil {
+			<-time.Tick(time.Second * time.Duration(s))
+		} else {
+			break
+		}
+	}
 	if err != nil {
 		return maps.Map{
 			"cost":     0,
@@ -108,7 +118,7 @@ func (this *HangingHouseCheckSource) Execute(params map[string]string) (value in
 		}
 		return value, err
 	}
-	fmt.Println("首页耗时", time.Since(before))
+	//fmt.Println("首页耗时", time.Since(before))
 	engine.DomainTop, engine.Domain = engine.GetDomain(this.URL)
 	//fmt.Println(engine.DomainTop, engine.Domain)
 	//监测结果
@@ -176,14 +186,14 @@ LOOP:
 				}()
 
 				//fmt.Println("url == ", v1, "level==", levelOn)
-				before1 := time.Now()
+				//before := time.Now()
 				engineSub, subHtml, err := chromeDpRun(v1, ctx)
 				if err != nil {
 					fmt.Println("子页面err ", err)
 
 					return
 				}
-				fmt.Println("子页面耗时", time.Since(before1), v1)
+				//fmt.Println("子页面耗时", time.Since(before1), v1)
 
 				if level > levelOn { //满足继续下探  才收集下级url地址
 					new_urls, checkCssResSub, err := engine.GetUrlsAndCheck(subHtml, engine.DomainTop, engine.Domain, v1, 3)
