@@ -18,7 +18,10 @@ func Test_run(t *testing.T) {
 	var err error
 	url := "http://www.iyunke.net/"
 	var ctxs chan context.Context
-	for time.Now().Before(before.Add(2 * time.Hour)) {
+	for true {
+		if before.Add(2*time.Hour).Unix() <= time.Now().Unix() {
+			break
+		}
 		//任务并发执行的时候 一定会出现获取窗口达到上限，这里使用两小时内重复获取
 		s := GenRandSecond()
 		ctxs, err = getWindowCtx()
@@ -66,7 +69,7 @@ func Test_run2(t *testing.T) {
 	//var cancel context.CancelFunc
 	ctx, cancel1 := chromedp.NewExecAllocator(context.Background(), options...)
 	fmt.Println(1)
-	ctx, cancel2 := chromedp.NewRemoteAllocator(ctx, "ws://127.0.0.1:9222") //使用远程调试，可以结合下面的容器使用
+	ctx, cancel2 := chromedp.NewRemoteAllocator(ctx, "http://127.0.0.1:9222") //使用远程调试，可以结合下面的容器使用
 	fmt.Println(2)
 
 	ctx, cancel3 := chromedp.NewContext(ctx, chromedp.WithLogf(log.Printf)) // 会打开浏览器并且新建一个标签页进行操作
@@ -98,7 +101,7 @@ func Test_run3(t *testing.T) {
 	)
 	allocCtx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
 	defer cancel()
-	ctx, _ := chromedp.NewRemoteAllocator(allocCtx, "ws://127.0.0.1:9222") //使用远程调试，可以结合下面的容器使用
+	ctx, _ := chromedp.NewRemoteAllocator(allocCtx, "http://127.0.0.1:9222") //使用远程调试，可以结合下面的容器使用
 
 	// create chrome instance
 	ctx, cancel = chromedp.NewContext(

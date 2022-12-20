@@ -20,7 +20,7 @@ func (this *IndexAction) Run(params struct{}) {
 	if len(files.List) > 0 {
 		this.Data["files"] = lists.Map(files.List, func(k int, v interface{}) interface{} {
 			cfg, _ := v.(chrome_host.List)
-			winCtx, _ := chromedp.NewRemoteAllocator(ctx, fmt.Sprintf("ws://%v:%v", cfg.Addr, cfg.Port)) //使用远程调试，可以结合下面的容器使用
+			winCtx, _ := chromedp.NewRemoteAllocator(ctx, fmt.Sprintf("http://%v:%v", cfg.Addr, cfg.Port)) //使用远程调试，可以结合下面的容器使用
 			winCtx, _ = chromedp.NewContext(winCtx)
 			targets, err := chromedp.Targets(winCtx)
 			window := 0

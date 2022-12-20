@@ -91,7 +91,7 @@ func init() {
 		for {
 			<-time.Tick(time.Second * 60)
 			for _, ch := range chromeHost {
-				winCtx, _ := chromedp.NewRemoteAllocator(CommCTX, fmt.Sprintf("ws://%v:%v", ch.Addr, ch.Port)) //使用远程调试，可以结合下面的容器使用
+				winCtx, _ := chromedp.NewRemoteAllocator(CommCTX, fmt.Sprintf("http://%v:%v", ch.Addr, ch.Port)) //使用远程调试，可以结合下面的容器使用
 				winCtx, _ = chromedp.NewContext(winCtx)
 				targets, err := chromedp.Targets(winCtx)
 				if err != nil {
@@ -247,7 +247,7 @@ func newChromeDpCtx(addr string, port int) (ctx context.Context, err error) {
 	TargeLock.Lock()
 	defer TargeLock.Unlock()
 
-	ctx, _ = chromedp.NewRemoteAllocator(CommCTX, fmt.Sprintf("ws://%v:%v", addr, port)) //使用远程调试，可以结合下面的容器使用
+	ctx, _ = chromedp.NewRemoteAllocator(CommCTX, fmt.Sprintf("http://%v:%v", addr, port)) //使用远程调试，可以结合下面的容器使用
 
 	if WindNum >= MaxWind {
 		return nil, errors.New("暂无空闲窗口")
@@ -923,7 +923,7 @@ func getWindowCtx() (ctxs chan context.Context, err error) {
 	if len(chromeHost) == 0 { //为配置浏览器 尝试使用本地浏览器
 		ip, port := "127.0.0.1", "9222"
 		if checkChromePort(ip, port) {
-			ctxBash, _ := chromedp.NewRemoteAllocator(CommCTX, fmt.Sprintf("ws://%v:%v", ip, port)) //使用远程调试，可以结合下面的容器使用
+			ctxBash, _ := chromedp.NewRemoteAllocator(CommCTX, fmt.Sprintf("http://%v:%v", ip, port)) //使用远程调试，可以结合下面的容器使用
 			openWindow, err := GetOpenWindowsNum(ctxBash)
 			if err != nil {
 				return nil, err
@@ -953,7 +953,7 @@ func getWindowCtx() (ctxs chan context.Context, err error) {
 	for _, v := range chromeHost {
 		//先检查端口是否可用
 		if checkChromePort(v.Addr, strconv.Itoa(v.Port)) {
-			ctxBash, _ := chromedp.NewRemoteAllocator(CommCTX, fmt.Sprintf("ws://%v:%v", v.Addr, strconv.Itoa(v.Port))) //使用远程调试，可以结合下面的容器使用
+			ctxBash, _ := chromedp.NewRemoteAllocator(CommCTX, fmt.Sprintf("http://%v:%v", v.Addr, strconv.Itoa(v.Port))) //使用远程调试，可以结合下面的容器使用
 			openWindow, err := GetOpenWindowsNum(ctxBash)
 			if err == nil {
 				//fmt.Println("获取窗口数err", err)
@@ -981,7 +981,7 @@ func getWindowCtx() (ctxs chan context.Context, err error) {
 	ctxs = make(chan context.Context, n)
 	for i := 1; i <= n; i++ {
 		if tmp := r.Get(); tmp != nil {
-			ctxBash, _ := chromedp.NewRemoteAllocator(CommCTX, fmt.Sprintf("ws://%v:%v", tmp.Addr, strconv.Itoa(tmp.Port))) //使用远程调试，可以结合下面的容器使用
+			ctxBash, _ := chromedp.NewRemoteAllocator(CommCTX, fmt.Sprintf("http://%v:%v", tmp.Addr, strconv.Itoa(tmp.Port))) //使用远程调试，可以结合下面的容器使用
 			ctx, _ := chromedp.NewContext(ctxBash, chromedp.WithLogf(log.Printf))
 			ctxs <- ctx
 		}
@@ -1015,7 +1015,7 @@ func CloseWindow(ctxs chan context.Context) {
 
 }
 
-//等待窗口随机暂停60-100秒
+// 等待窗口随机暂停60-100秒
 func GenRandSecond() int {
 	source := rand.NewSource(time.Now().UnixNano())
 	var max int64 = 100

@@ -3,6 +3,7 @@ package agents
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/TeaWeb/build/internal/teaconfigs/forms"
 	"github.com/TeaWeb/build/internal/teaconfigs/notices"
 	"github.com/TeaWeb/build/internal/teaconfigs/shared"
@@ -78,7 +79,10 @@ func (this *DarkChainCheckSource) Execute(params map[string]string) (value inter
 
 	before := time.Now()
 	var ctxs chan context.Context
-	for time.Now().Before(before.Add(2 * time.Hour)) {
+	for true {
+		if before.Add(2*time.Hour).Unix() <= time.Now().Unix() {
+			break
+		}
 		//任务并发执行的时候 一定会出现获取窗口达到上限，这里使用两小时内重复获取
 		s := GenRandSecond()
 		ctxs, err = getWindowCtx()
@@ -88,9 +92,10 @@ func (this *DarkChainCheckSource) Execute(params map[string]string) (value inter
 			break
 		}
 	}
-	if err != nil {
+	if err != nil || len(ctxs) == 0 {
+		fmt.Println(err)
 		return maps.Map{
-			"cost":     0,
+			"cost":     time.Since(before).Seconds(),
 			"status":   0,
 			"list":     make([]CheckRes, 0),
 			"scanList": "",
