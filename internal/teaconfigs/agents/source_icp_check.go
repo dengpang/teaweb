@@ -147,83 +147,90 @@ func (this *IcpCheckSource) Posticp(needCache bool) (value interface{}, ok bool,
 		"unitName": "",
 		"ok":       false,
 	}
+	icpCache := IcpCache{}
 	//fmt.Println(this.Domain)
 	icpValue, ok := Cache.Get(this.Domain)
-	if needCache && ok { //需要缓存(备案监测任务不需要缓存，挂马监测任务时，备案监测需要缓存)
-		icpCache := IcpCache{}
+	if needCache && ok { //需要缓存
+		// 备案监测任务缓存最多5分钟
+		//挂马监测，暗链检测任务时 缓存最多2小时
+
 		icpByte, _ := json.Marshal(icpValue)
 		//fmt.Println("json err:", err)
 		json.Unmarshal(icpByte, &icpCache)
 		return icpValue, icpCache.Ok, nil
 	} else {
-		token, err := this.GetToken(getIcpTokenKey)
-		if err != nil {
-			fmt.Println("get token err=", err)
-			return value, false, err
-		}
-		body := bytes.NewReader([]byte(`{"pageNum":"","pageSize":"","unitName":"` + this.Domain + `"}`))
-		req, err := http.NewRequest("POST", "https://hlwicpfwc.miit.gov.cn/icpproject_query/api/icpAbbreviateInfo/queryByCondition", body)
-		req.Header.Set("Content-Type", "application/json;charset=UTF-8")
-		req.Header.Set("token", token)
-		req.Header.Set("Origin", "https://beian.miit.gov.cn/")
-		req.Header.Set("Referer", "https://beian.miit.gov.cn/")
-		req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36")
-		ip := fmt.Sprintf("101.%v.%v.%v", rand.Intn(255), rand.Intn(255), rand.Intn(255))
-		req.Header.Set("CLIENT-IP", ip)
-		req.Header.Set("X-FORWARDED-FOR", ip)
-		client := teautils.SharedHttpClient(5 * time.Second)
-		resp, err := client.Do(req)
-		if err != nil {
-			return value, false, err
-		}
-		defer func() {
-			_ = resp.Body.Close()
-		}()
-
-		data, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			fmt.Println("get res err=", err)
-			return value, false, err
-		}
-		//fmt.Println(string(data))
-		icp := &IcpRes{}
-		err = json.Unmarshal(data, &icp)
-		if err != nil {
-			return value, false, err
-		}
-		if !icp.Success || icp.Code != 200 {
-			return value, false, nil
-		}
-		if icp.Params != nil && len(icp.Params.List) > 0 {
-			value = maps.Map{
-				"icp":      icp.Params.List[0].ServiceLicence,
-				"unitName": icp.Params.List[0].UnitName,
-				"ok":       true,
+		icpValue, err = CheckCache(getIcpResponseKey+this.Domain, func() (interface{}, error) {
+			token, err := this.GetToken(getIcpTokenKey)
+			if err != nil {
+				fmt.Println("get token err=", err)
+				return value, err
 			}
-			ok = true
-		}
-		Cache.Set(this.Domain, value, time.Duration(3600*2)*time.Second)
+			body := bytes.NewReader([]byte(`{"pageNum":"","pageSize":"","unitName":"` + this.Domain + `"}`))
+			req, err := http.NewRequest("POST", "https://hlwicpfwc.miit.gov.cn/icpproject_query/api/icpAbbreviateInfo/queryByCondition", body)
+			req.Header.Set("Content-Type", "application/json;charset=UTF-8")
+			req.Header.Set("token", token)
+			req.Header.Set("Origin", "https://beian.miit.gov.cn/")
+			req.Header.Set("Referer", "https://beian.miit.gov.cn/")
+			req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36")
+			ip := fmt.Sprintf("101.%v.%v.%v", rand.Intn(255), rand.Intn(255), rand.Intn(255))
+			req.Header.Set("CLIENT-IP", ip)
+			req.Header.Set("X-FORWARDED-FOR", ip)
+			client := teautils.SharedHttpClient(5 * time.Second)
+			resp, err := client.Do(req)
+			if err != nil {
+				fmt.Println("do err=", err)
+				return value, err
+			}
+			defer func() {
+				_ = resp.Body.Close()
+			}()
 
+			data, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				fmt.Println("get res err=", err)
+				return value, err
+			}
+			//fmt.Println(string(data))
+			icp := &IcpRes{}
+			err = json.Unmarshal(data, &icp)
+			if err != nil {
+				fmt.Println(string(data))
+				fmt.Println("unmarshal err=", err)
+				return value, err
+			}
+			if !icp.Success || icp.Code != 200 {
+				return value, nil
+			}
+			if icp.Params != nil && len(icp.Params.List) > 0 {
+				value = maps.Map{
+					"icp":      icp.Params.List[0].ServiceLicence,
+					"unitName": icp.Params.List[0].UnitName,
+					"ok":       true,
+				}
+				ok = true
+			}
+			//挂马 暗链检查 缓存2小时
+			Cache.Set(this.Domain, value, time.Duration(3600*2)*time.Second)
+			return value, err
+		}, 300, true) //备案检查缓存时间
+		if err != nil {
+			return value, false, err
+		}
+		icpByte, _ := json.Marshal(icpValue)
+		//fmt.Println("json err:", err)
+		json.Unmarshal(icpByte, &icpCache)
+		return icpValue, icpCache.Ok, nil
 	}
 
 	return
 }
 
 func (this *IcpCheckSource) GetToken(getIcpTokenKey string) (token string, err error) {
-	s, e := CheckCache(getIcpTokenKey, this.getToken, 20, true)
+	s, e := CheckCache(getIcpTokenKey, this.getToken, 300, true)
 	if e != nil {
 		return token, e
 	}
 
-	//if tokens, ok := Cache.Get(getIcpTokenKey); ok {
-	//	token = fmt.Sprintf("%s", tokens)
-	//	return token, nil
-	//}
-	//tokens, ok, _ := lockG.Do(getIcpTokenKey, this.getToken)
-	//if ok == nil {
-	//	Cache.Set(getIcpTokenKey, tokens, time.Duration(20)*time.Second)
-	//
-	//}
 	token = fmt.Sprintf("%s", s)
 	return token, nil
 
@@ -246,6 +253,7 @@ func (this *IcpCheckSource) getToken() (token interface{}, err error) {
 	client := teautils.SharedHttpClient(5 * time.Second)
 	resp, err := client.Do(req)
 	if err != nil {
+		fmt.Println("do err=", err)
 		return token, err
 	}
 	defer func() {
@@ -254,11 +262,15 @@ func (this *IcpCheckSource) getToken() (token interface{}, err error) {
 	data, err := ioutil.ReadAll(resp.Body)
 	//fmt.Println(string(data))
 	if err != nil {
+		fmt.Println("ReadAll err=", err)
 		return token, err
 	}
 	tokenres := &TokenRes{}
 	err = json.Unmarshal(data, &tokenres)
 	if err != nil {
+		fmt.Println(string(data))
+		fmt.Println("Unmarshal err=", err)
+
 		return token, err
 	}
 	if !tokenres.Success || tokenres.Code != 200 {

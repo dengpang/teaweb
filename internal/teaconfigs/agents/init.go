@@ -13,10 +13,11 @@ func init() {
 }
 
 var (
-	lockG          = &singleflight.Group{}
-	getIcpTokenKey = "check_getIcpTokenKey"
-	Cache          = teautils.New(5*time.Minute, 10*time.Minute)
-	getCssKey      = "check_getCssContentKey"
+	lockG             = &singleflight.Group{}
+	getIcpTokenKey    = "check_getIcpTokenKey"
+	getIcpResponseKey = "check_getIcpResponseKey:domain:"
+	Cache             = teautils.New(5*time.Minute, 10*time.Minute)
+	getCssKey         = "check_getCssContentKey"
 
 	chromeHost = []*ChromeHost{}
 )
