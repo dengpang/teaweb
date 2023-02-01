@@ -103,9 +103,12 @@ func init() {
 					if v.Type == "page" { //不是iframe标签
 						if value, ok := winMap[string(v.TargetID)]; ok && value == Md5Str(v.URL+v.Title) {
 							//页面tital和url地址没有变化，关闭此窗口
-							free, _ := chromedp.NewContext(winCtx, chromedp.WithTargetID(v.TargetID))
-							chromedp.Run(free, chromedp.Navigate(`chrome://newtab/`))
-							chromedp.Cancel(free)
+							winCtxOne, cancel := context.WithTimeout(winCtx, 5*time.Second)
+							defer cancel()
+							//页面tital和url地址没有变化，关闭此窗口
+							winCtxOne, _ = chromedp.NewContext(winCtxOne, chromedp.WithTargetID(v.TargetID))
+							chromedp.Run(winCtxOne, chromedp.Navigate(`chrome://newtab/`))
+							chromedp.Cancel(winCtxOne)
 							time.Sleep(time.Second * 1)
 							delete(winMap, string(v.TargetID))
 						} else {
