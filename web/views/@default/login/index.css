@@ -3,7 +3,13 @@
     -webkit-background-size: cover;
     background-size: cover;
 }**/
+.new {
+    background-color: rgb(61,192,277)!important;
 
+}
+.new:hover {
+    background: #2185d0!important;
+}
 .menu {
     border-radius: 0!important;
     background: #276ac6!important;
@@ -15,6 +21,10 @@
     bottom: 0;
     left: 0;
     right: 0;
+    background-image:url('./img.png');
+    background-size: 100%;
+    background-repeat: no-repeat;
+    background-position: center;
 }
 
 form {
