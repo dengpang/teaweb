@@ -146,6 +146,11 @@ func (this *HangingHouseCheckSource) Execute(params map[string]string) (value in
 			}
 		}
 	}
+	if ok, scriptHanging := engine.checkScriptHangingHorse2(page, this.URL, engine.Location); ok {
+		for k, v := range scriptHanging {
+			checkRes[k] = v
+		}
+	}
 	//已经请求过的url
 	urlExistsMap := map[string]struct{}{
 		this.URL: {},
@@ -234,6 +239,13 @@ LOOP:
 						}
 						resLock.Unlock()
 					}
+				}
+				if ok, scriptHanging := engine.checkScriptHangingHorse2(page, this.URL, engine.Location); ok {
+					resLock.Lock()
+					for k, v := range scriptHanging {
+						checkRes[k] = v
+					}
+					resLock.Unlock()
 				}
 			}(winCtx, k1)
 		}
