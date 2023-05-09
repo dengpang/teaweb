@@ -14,17 +14,19 @@ Tea.context(function () {
 			var pair = vars[i].split("=");
 			if(pair[0] == variable){return pair[1];}
 		}
-		return(false);
+		return '';
 	}
 	this.loadItems = function () {
 		let page = getQueryVariable("page")
 		let size = getQueryVariable("pageSize")
+		let name = getQueryVariable("name")
 		this.$post("$")
 			.params({
 				"agentId": this.agentId,
 				"appId": this.app.id,
 				"page": page,
 				"pageSize": size,
+				"name":name,
 			})
 			.success(function (resp) {
 				this.items = resp.data.items;

@@ -130,23 +130,27 @@ func (this *HangingHouseCheckSource) Execute(params map[string]string) (value in
 	Urls, checkCssRes, err := engine.GetUrlsAndCheck(page, engine.DomainTop, engine.Domain, this.URL, 3)
 	//fmt.Println(Urls, err)
 	if len(checkCssRes) > 0 {
+		//fmt.Println(1)
 		for k, v := range checkCssRes { //css挂马
 			checkRes[k] = v
 		}
 	}
 	if ok, res := engine.checkIframeHangingHorse(page, this.URL, engine.DomainTop); ok && len(res) > 0 {
+		//fmt.Println(2)
 		for k, v := range res {
 			checkRes[k] = v
 		}
 	}
 	if engine.Location != "" && engine.Location != "chrome-error://chromewebdata/" {
 		if scriptHanging := engine.checkScriptHangingHorse(engine.DomainTop, this.URL, engine.Location); len(scriptHanging) > 0 {
+			//fmt.Println(3)
 			for k, v := range scriptHanging {
 				checkRes[k] = v
 			}
 		}
 	}
 	if ok, scriptHanging := engine.checkScriptHangingHorse2(page, this.URL, engine.Location); ok {
+		//fmt.Println(4)
 		for k, v := range scriptHanging {
 			checkRes[k] = v
 		}
@@ -215,6 +219,7 @@ LOOP:
 					}
 					if len(checkCssResSub) > 0 {
 						resLock.Lock()
+						//fmt.Println(1)
 						for k, v := range checkCssResSub { //css挂马
 							checkRes[k] = v
 						}
@@ -225,6 +230,7 @@ LOOP:
 				//检测 iframe挂马
 				if ok, res := engine.checkIframeHangingHorse(subHtml, v1, engine.DomainTop); ok && len(res) > 0 {
 					resLock.Lock()
+					//fmt.Println(2)
 					for k, v := range res {
 						checkRes[k] = v
 					}
@@ -234,6 +240,7 @@ LOOP:
 				if engineSub.Location != "" && engineSub.Location != "chrome-error://chromewebdata/" {
 					if scriptHanging := engine.checkScriptHangingHorse(engine.DomainTop, v1, engineSub.Location); len(scriptHanging) > 0 {
 						resLock.Lock()
+						//fmt.Println(engine.DomainTop, v1, engineSub.Location)
 						for k, v := range scriptHanging {
 							checkRes[k] = v
 						}
@@ -242,6 +249,7 @@ LOOP:
 				}
 				if ok, scriptHanging := engine.checkScriptHangingHorse2(page, this.URL, engine.Location); ok {
 					resLock.Lock()
+					//fmt.Println(4)
 					for k, v := range scriptHanging {
 						checkRes[k] = v
 					}

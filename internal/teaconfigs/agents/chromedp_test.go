@@ -175,7 +175,11 @@ func Test_getDomain(t *testing.T) {
 	fmt.Println(en.GetDomain(url))
 	fmt.Println(en.GetUrl("//v.qq.com/txp/iframe/player.html?vid=m3366k2fvlr", "https://www.cqwuxi.com", "https://www.cqwuxi.com/thread-1031441-1-1.html"))
 }
-
+func Test_getDomain1(t *testing.T) {
+	en := &ChromeDpEngine{}
+	url := "https://zq.zj96596.com:34210/netbank/checkElecWarrant.html"
+	fmt.Println(en.GetDomain(url))
+}
 func Test_simplifyStr(t *testing.T) {
 	str := `http://v.baidu.com/v?ct=301989888\u0026rn=20\u0026pn=0\u0026db=0\u0026s=25\u0026ie=utf-8, http://xueshu.baidu.com/, http://map.baidu.com, http://www.baidu.com/duty, http://ir.baidu.com, https://www.baidu.com/s?wd=%E4%B9%A0%E8%BF%91%E5%B9%B3%E4%BB%BB%E4%B8%AD%E5%A4%AE%E5%86%9B%E5%A7%94%E4%B8%BB%E5%B8%AD\u0026sa=fyb_n_homepage\u0026rsv_dl=fyb_n_homepage\u0026from=super\u0026cl=3\u0026tn=baidutop10\u0026fr=top1000\u0026rsv_idx=2\u0026hisfilter=1, https://www.baidu.com/s?wd=%E4%B8%AD%E5%85%B1%E4%BA%8C%E5%8D%81%E5%B1%8A%E4%B8%80%E4%B8%AD%E5%85%A8%E4%BC%9A%E5%85%AC%E6%8A%A5\u0026sa=fyb_n_homepage\u0026rsv_dl=fyb_n_homepage\u0026from=super\u0026cl=3\u0026tn=baidutop10\u0026fr=top1000\u0026rsv_idx=2\u0026hisfilter=1, https://b2b.baidu.com/s?fr=wwwt, http://tieba.baidu.com/, http://www.baidu.com/, http://e.baidu.com/ebaidu/home?refer=887, https://jiankang.baidu.com/widescreen/home, http://fanyi.baidu.com/, https://pan.baidu.com?from=1026962h, https://zhidao.baidu.com, https://www.baidu.com/s?wd=%E5%BE%AE%E8%A7%86%E9%A2%91%EF%BD%9C%E7%9B%9B%E4%BC%9A%E5%87%9D%E8%81%9A%E5%A5%8B%E8%BF%9B%E5%8A%9B%E9%87%8F\u0026sa=fyb_n_homepage\u0026rsv_dl=fyb_n_homepage\u0026from=super\u0026cl=3\u0026tn=baidutop10\u0026fr=top1000\u0026rsv_idx=2\u0026hisfilter=1, http://image.baidu.com/i?tn=baiduimage\u0026ps=1\u0026ct=201326592\u0026lm=-1\u0026cl=2\u0026nc=1\u0026ie=utf-8, https://e.baidu.com/?refer=1271, https://haokan.baidu.com/?sfrom=baidu-top, http://news.baidu.com, https://baike.baidu.com`
 	fmt.Println(simplifyContent(str))

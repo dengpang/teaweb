@@ -11,6 +11,7 @@ import (
 	"github.com/iwind/TeaGo/logs"
 	"github.com/iwind/TeaGo/maps"
 	"github.com/iwind/TeaGo/utils/time"
+	"strings"
 	"time"
 )
 
@@ -22,13 +23,22 @@ type MonitorAction struct {
 func (this *MonitorAction) Run(params struct {
 	AgentId string
 	AppId   string
+	Name    string
 }) {
 	app := agentutils.InitAppData(this, params.AgentId, params.AppId, "monitor")
 	err := app.Validate()
 	if err != nil {
 		logs.Error(err)
 	}
-
+	if params.Name != "" {
+		items := []*agents.Item{}
+		for _, v := range app.Items {
+			if strings.Contains(strings.ToLower(v.Name), strings.ToLower(params.Name)) {
+				items = append(items, v)
+			}
+		}
+		app.Items = items
+	}
 	m := this.Data["app"].(maps.Map)
 
 	this.Data["noticeLevels"] = notices.AllNoticeLevels()
@@ -52,6 +62,7 @@ func (this *MonitorAction) Run(params struct {
 func (this *MonitorAction) RunPost(params struct {
 	AgentId string
 	AppId   string
+	Name    string
 }) {
 	agent := agents.NewAgentConfigFromId(params.AgentId)
 	if agent == nil {
@@ -61,6 +72,15 @@ func (this *MonitorAction) RunPost(params struct {
 	app := agent.FindApp(params.AppId)
 	if app == nil {
 		this.Fail("找不到App")
+	}
+	if params.Name != "" {
+		items := []*agents.Item{}
+		for _, v := range app.Items {
+			if strings.Contains(strings.ToLower(v.Name), strings.ToLower(params.Name)) {
+				items = append(items, v)
+			}
+		}
+		app.Items = items
 	}
 	page := this.NewPage(int64(len(app.Items)))
 	end := page.Offset + page.Size

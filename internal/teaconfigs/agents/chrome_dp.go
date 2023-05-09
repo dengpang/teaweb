@@ -710,7 +710,8 @@ func (this *ChromeDpEngine) checkScriptDarkChain(html []*Page, pageUrl, doMainTo
 						return
 					}
 				})
-				if aUrl != "" && !this.checkUrlDomain(aUrl, doMainTop) { //marquee标签内有a标签且地址不是当前域名  判断marquee标签宽高是否可疑
+				inHttp := strings.Contains(aUrl, "http://") || strings.Contains(aUrl, "https://")
+				if aUrl != "" && inHttp && !this.checkUrlDomain(aUrl, doMainTop) { //marquee标签内有a标签且地址不是当前域名  判断marquee标签宽高是否可疑
 					width, widthExists := selection.Attr("width")
 					height, heightExists := selection.Attr("height")
 					if widthExists && heightExists {
@@ -740,7 +741,8 @@ func (this *ChromeDpEngine) checkScriptDarkChain(html []*Page, pageUrl, doMainTo
 					equiv, equivExists := selection.Attr("http-equiv")
 
 					if equivExists && equiv == "refresh" {
-						if !this.checkUrlDomain(aUrl, doMainTop) { //地址不是当前域名
+						inHttp := strings.Contains(aUrl, "http://") || strings.Contains(aUrl, "https://")
+						if inHttp && !this.checkUrlDomain(aUrl, doMainTop) { //地址不是当前域名
 							//可疑暗链
 							dark_chain[Md5Str(pageUrl+aUrl)] = CheckRes{
 								Url:   pageUrl,
@@ -776,7 +778,8 @@ func (this *ChromeDpEngine) checkIframeHangingHorse(html []*Page, pageUrl, doMai
 					srcUrl = url
 				}
 				//有地址并且不是当前域名的地址
-				if srcUrl != "" && !this.checkUrlDomain(srcUrl, doMainTop) {
+				inHttp := strings.Contains(srcUrl, "http://") || strings.Contains(srcUrl, "https://")
+				if srcUrl != "" && inHttp && !this.checkUrlDomain(srcUrl, doMainTop) {
 					{ //通过标签属性+地址是否同顶级域名 判断是否挂马
 						content, styleExists := selection.Attr("style")
 						parentContent, parentStyleExists := selection.Parent().Attr("style")
@@ -852,10 +855,9 @@ func (this *ChromeDpEngine) checkScriptHangingHorse(domainTop, url, location str
 
 	//响应地址的顶级域名和请求地址的顶级域名如果不同，可疑挂马
 	if top, _ := this.GetDomain(location); top != domainTop {
-
 		icp := NewIcpCheckSource()
 		icp.GetToken(getIcpTokenKey)
-		icp.Domain, _ = this.GetDomain(location)
+		icp.Domain = top
 		if _, icpOk, err := icp.Posticp(true); err == nil && !icpOk {
 			hangingHorse[Md5Str(url+location)] = CheckRes{
 				Url:   url,
@@ -895,11 +897,15 @@ func (this *ChromeDpEngine) checkScriptHangingHorse2(html []*Page, pageUrl, doMa
 					}
 				}
 				//通过是否备案来判断
-				if srcUrl != "" {
+				if srcUrl != "" && (strings.Contains(srcUrl, "http://") || strings.Contains(srcUrl, "https://")) {
 					icp := NewIcpCheckSource()
 					icp.GetToken(getIcpTokenKey)
 					icp.Domain, _ = this.GetDomain(srcUrl)
 					if _, icpOk, err := icp.Posticp(true); err == nil && !icpOk {
+						//fmt.Println(srcUrl)
+						//fmt.Println(icp.Domain)
+						//fmt.Println(pageUrl)
+						//fmt.Println(content)
 						hangingHorse[Md5Str(pageUrl+content)] = CheckRes{
 							Url:   pageUrl,
 							Value: simplifyContent(content),
@@ -938,10 +944,10 @@ func (this *ChromeDpEngine) GetDomain(url string) (domainTop, domain string) {
 	s := strings.Split(url, ".")
 	if len(s) <= interceptLen {
 		domainTop = strings.Join(s, ".")
-		return domainTop, strings.Split(resoureUrl, domainTop)[0] + domainTop
+		return strings.Split(domainTop, ":")[0], strings.Split(resoureUrl, domainTop)[0] + domainTop
 	}
 	domainTop = strings.Join(s[len(s)-interceptLen:], ".")
-	return domainTop, strings.Split(resoureUrl, domainTop)[0] + domainTop
+	return strings.Split(domainTop, ":")[0], strings.Split(resoureUrl, domainTop)[0] + domainTop
 }
 
 /*

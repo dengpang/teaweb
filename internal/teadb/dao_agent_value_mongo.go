@@ -283,6 +283,7 @@ func (this *MongoAgentValueDAO) selectColl(collName string) (*MongoCollection, e
 		return coll, nil
 	}
 	err = coll.CreateIndex(
+		shared.NewIndexField("agentId", true),
 		shared.NewIndexField("appId", true),
 		shared.NewIndexField("itemId", true),
 		shared.NewIndexField("createdAt", false),
@@ -291,6 +292,7 @@ func (this *MongoAgentValueDAO) selectColl(collName string) (*MongoCollection, e
 		logs.Error(err)
 	}
 	err = coll.CreateIndex(
+		shared.NewIndexField("agentId", true),
 		shared.NewIndexField("appId", true),
 		shared.NewIndexField("itemId", true),
 		shared.NewIndexField("nodeId", true),

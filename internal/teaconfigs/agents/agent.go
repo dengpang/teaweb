@@ -260,6 +260,21 @@ func (this *AgentConfig) FindApp(appId string) *AppConfig {
 	return nil
 }
 
+// 查找Item
+//func (this *AgentConfig) FindItemName(appId string) *AppConfig {
+//	item := &AppConfig{}
+//	for _, a := range this.Apps {
+//		if a.Id == appId {
+//			item = a
+//			break
+//		}
+//	}
+//	for _,v := range item.Items {
+//
+//	}
+//	return nil
+//}
+
 // 判断是否有某个App
 func (this *AgentConfig) HasApp(appId string) bool {
 	for _, a := range this.Apps {

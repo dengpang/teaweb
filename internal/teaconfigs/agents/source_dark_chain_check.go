@@ -122,7 +122,7 @@ func (this *DarkChainCheckSource) Execute(params map[string]string) (value inter
 	//监测结果
 	checkRes := map[string]CheckRes{}
 	//script标签和其他标签 进行暗链可疑监测
-	if ok, res := engine.checkScriptDarkChain(page, engine.Domain, engine.DomainTop); ok && len(res) > 0 {
+	if ok, res := engine.checkScriptDarkChain(page, engine.Url, engine.DomainTop); ok && len(res) > 0 {
 		for k, v := range res {
 			checkRes[k] = v
 		}
