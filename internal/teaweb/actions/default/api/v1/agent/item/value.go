@@ -73,9 +73,9 @@ func (this *ValueAction) RunGet(params struct {
 			this.Fail("查询失败：" + err.Error())
 		}
 		if teautils.RedisCliPing {
-			teautils.SetCache(key, ones, time.Minute*5)
+			teautils.SetCache(key, ones, time.Minute*30)
 		} else {
-			teautils.CacheCli.Set(key, ones, time.Minute*5)
+			teautils.CacheCli.Set(key, ones, time.Minute*30)
 		}
 	}
 

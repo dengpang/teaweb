@@ -279,9 +279,9 @@ func (this *PushAction) processItemEvent(agent *agents.AgentConfig, m maps.Map, 
 	key := fmt.Sprint("%s-%s-%s", value.AgentId, value.AppId, value.ItemId)
 	ones := []*agents.Value{value}
 	if teautils.RedisCliPing {
-		teautils.SetCache(key, ones, time.Minute*5)
+		teautils.SetCache(key, ones, time.Minute*30)
 	} else {
-		teautils.CacheCli.Set(key, ones, time.Minute*5)
+		teautils.CacheCli.Set(key, ones, time.Minute*30)
 
 	}
 
