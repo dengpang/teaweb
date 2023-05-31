@@ -78,10 +78,18 @@ func (this *ValueAction) RunGet(params struct {
 			teautils.CacheCli.Set(key, ones, time.Minute*30)
 		}
 	}
-
+	if len(ones) == 0 {
+		this.Data["values"] = []interface{}{}
+		this.Success()
+	}
+	if params.LastId != "" && params.LastId == ones[0].Id.Hex() {
+		this.Data["values"] = []interface{}{}
+		this.Success()
+	}
 	source := item.Source()
 	this.Data["values"] = lists.Map(ones, func(k int, v interface{}) interface{} {
 		value := v.(*agents.Value)
+		fmt.Println(params.LastId, value.Id.Hex())
 
 		vars := []maps.Map{}
 		if types.IsMap(value.Value) || types.IsSlice(value.Value) {

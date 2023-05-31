@@ -89,7 +89,6 @@ func (this *PushAction) Run(params struct{}) {
 			logs.Error(err)
 		}
 	} else if eventDomain == "ItemEvent" { // 监控项事件
-		fmt.Println("push 消息 监控项事件")
 		this.processItemEvent(agent, m, t)
 	}
 
@@ -284,7 +283,6 @@ func (this *PushAction) processItemEvent(agent *agents.AgentConfig, m maps.Map, 
 		teautils.CacheCli.Set(key, ones, time.Minute*30)
 
 	}
-
 	err = teadb.AgentValueDAO().Insert(agent.Id, value)
 	if err != nil {
 		logs.Error(err)
