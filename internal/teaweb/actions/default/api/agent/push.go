@@ -10,6 +10,7 @@ import (
 	"github.com/TeaWeb/build/internal/teaconfigs/notices"
 	"github.com/TeaWeb/build/internal/teadb"
 	"github.com/TeaWeb/build/internal/teadb/shared"
+	"github.com/TeaWeb/build/internal/teautils"
 	"github.com/TeaWeb/build/internal/teaweb/actions/default/agents/agentutils"
 	"github.com/iwind/TeaGo/actions"
 	"github.com/iwind/TeaGo/lists"
@@ -29,7 +30,6 @@ func (this *PushAction) Run(params struct{}) {
 	if !teadb.SharedDB().IsAvailable() {
 		this.Success()
 	}
-
 	agent := this.Context.Get("agent").(*agents.AgentConfig)
 
 	// 是否未启用
@@ -89,6 +89,7 @@ func (this *PushAction) Run(params struct{}) {
 			logs.Error(err)
 		}
 	} else if eventDomain == "ItemEvent" { // 监控项事件
+		fmt.Println("push 消息 监控项事件")
 		this.processItemEvent(agent, m, t)
 	}
 
@@ -274,6 +275,15 @@ func (this *PushAction) processItemEvent(agent *agents.AgentConfig, m maps.Map, 
 		value.Threshold = threshold.Expression()
 	}
 	value.SetTime(t)
+
+	key := fmt.Sprint("%s-%s-%s", value.AgentId, value.AppId, value.ItemId)
+	ones := []*agents.Value{value}
+	if teautils.RedisCliPing {
+		teautils.SetCache(key, ones, time.Minute*5)
+	} else {
+		teautils.CacheCli.Set(key, ones, time.Minute*5)
+
+	}
 
 	err = teadb.AgentValueDAO().Insert(agent.Id, value)
 	if err != nil {

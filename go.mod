@@ -67,6 +67,7 @@ require (
 	github.com/syndtr/goleveldb v1.0.0
 	github.com/tatsushid/go-fastping v0.0.0-20160109021039-d7bb493dee3e
 	github.com/technoweenie/multipartstreamer v1.0.1 // indirect
+	github.com/tidwall/gjson v1.14.4
 	github.com/timewasted/linode v0.0.0-20160829202747-37e84520dcf7
 	github.com/tklauser/go-sysconf v0.3.10 // indirect
 	github.com/transip/gotransip v5.8.2+incompatible

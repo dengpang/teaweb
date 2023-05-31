@@ -25,6 +25,9 @@ type AdminConfig struct {
 
 	// 用户
 	Users []*AdminUser `yaml:"users" json:"users"`
+
+	//redis
+	Redis *RedisConfig `yaml:"redis" json:"redis"`
 }
 
 var adminConfig *AdminConfig
@@ -284,4 +287,18 @@ func (this *AdminConfig) Reset() {
 	for _, u := range this.Users {
 		u.Reset()
 	}
+}
+
+//Redis
+func (this *AdminConfig) GetRedis() (c *RedisConfig) {
+	adminConfigLocker.Lock()
+	defer adminConfigLocker.Unlock()
+	c = &RedisConfig{
+		Addr:     this.Redis.Addr,
+		Password: this.Redis.Password,
+		DBIndex:  this.Redis.DBIndex,
+		PoolSize: this.Redis.PoolSize,
+		IdleSize: this.Redis.IdleSize,
+	}
+	return c
 }

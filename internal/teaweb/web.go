@@ -65,6 +65,7 @@ import (
 	_ "github.com/TeaWeb/build/internal/teaweb/actions/default/settings/update"
 	_ "github.com/TeaWeb/build/internal/teaweb/actions/default/ui"
 	"github.com/TeaWeb/build/internal/teaweb/cmd"
+	"github.com/TeaWeb/build/internal/teaweb/configs"
 	"github.com/TeaWeb/build/internal/teaweb/utils"
 	"github.com/iwind/TeaGo"
 	"github.com/iwind/TeaGo/Tea"
@@ -114,7 +115,9 @@ func Start() {
 			teatesting.StartTestServer()
 		}()
 	}
-
+	//建立redis链接
+	redisConf := configs.SharedAdminConfig().GetRedis()
+	teautils.SetRedis(redisConf.Addr, redisConf.DBIndex, redisConf.PoolSize, redisConf.IdleSize, redisConf.Password)
 	// 设置变量
 	Tea.SetPublicDir(teautils.WebRoot() + Tea.DS + "public")
 	Tea.SetViewsDir(teautils.WebRoot() + Tea.DS + "views")
