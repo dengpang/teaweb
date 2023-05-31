@@ -271,3 +271,9 @@ func Test_Rand(t *testing.T) {
 	}
 	fmt.Println("ok")
 }
+
+func Test_re1(t *testing.T) {
+	locationHrefRex, _ = regexp.Compile(`(window\.l|l|self\.l|this\.l)ocation\s{0,}=`) //特殊关键词
+	res := locationHrefRex.MatchString("function wContent() {\n  var hm = document.createElement(\"script\");\n  hm.innerHTML = 'var weburl = url[Math.floor(Math.random()*url.length)]+\"/register?id=\"+rid; setTimeout(function () {window.location = weburl;},timesleep);';\n  var s = document.getElementsByTagName(\"script\")[0]; \n  document.body.appendChild(hm);\n};\n")
+	fmt.Println(res)
+}

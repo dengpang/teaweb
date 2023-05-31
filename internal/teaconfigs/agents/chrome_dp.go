@@ -29,6 +29,8 @@ var timeOutError = errors.New("获取指定path的的页面元素超时")
 var documentReferrerRex *regexp.Regexp
 var indexOfRex *regexp.Regexp
 var locationHrefRex *regexp.Regexp
+var locationRex *regexp.Regexp
+var setTimeoutRex *regexp.Regexp
 var evalRex *regexp.Regexp
 var unicodeRex *regexp.Regexp
 var baseRex *regexp.Regexp
@@ -54,6 +56,8 @@ func init() {
 	documentReferrerRex, _ = regexp.Compile(`document\.referrer`)                                                                      //特殊关键词
 	indexOfRex, _ = regexp.Compile(`\.indexOf\(`)                                                                                      //特殊关键词
 	locationHrefRex, _ = regexp.Compile(`(window\.l|l|self\.l|this\.l)ocation\.href`)                                                  //特殊关键词
+	locationRex, _ = regexp.Compile(`(window\.l|l|self\.l|this\.l)ocation\s{0,}=`)                                                     //特殊关键词
+	setTimeoutRex, _ = regexp.Compile(`setTimeout\(`)                                                                                  //特殊关键词
 	evalRex, _ = regexp.Compile(`eval\(`)                                                                                              //js压缩标识
 	unicodeRex, _ = regexp.Compile(`\&\#\d{1,};`)                                                                                      //unicode标识
 	baseRex, _ = regexp.Compile(`(\\u|\\x|\|u|\|x)\d{1,}`)                                                                             //十进制 16进制标识
@@ -103,9 +107,12 @@ func init() {
 					if v.Type == "page" { //不是iframe标签
 						if value, ok := winMap[string(v.TargetID)]; ok && value == Md5Str(v.URL+v.Title) {
 							//页面tital和url地址没有变化，关闭此窗口
-							free, _ := chromedp.NewContext(winCtx, chromedp.WithTargetID(v.TargetID))
-							chromedp.Run(free, chromedp.Navigate(`chrome://newtab/`))
-							chromedp.Cancel(free)
+							winCtxOne, cancel := context.WithTimeout(winCtx, 5*time.Second)
+							defer cancel()
+							//页面tital和url地址没有变化，关闭此窗口
+							winCtxOne, _ = chromedp.NewContext(winCtxOne, chromedp.WithTargetID(v.TargetID))
+							chromedp.Run(winCtxOne, chromedp.Navigate(`chrome://newtab/`))
+							chromedp.Cancel(winCtxOne)
 							time.Sleep(time.Second * 1)
 							delete(winMap, string(v.TargetID))
 						} else {
@@ -640,7 +647,7 @@ func (this *ChromeDpEngine) checkScriptDarkChain(html []*Page, pageUrl, doMainTo
 					url = strings.TrimPrefix(url, " ")
 					srcUrl = url
 				}
-				if documentReferrerRex.MatchString(content) && indexOfRex.MatchString(content) && locationHrefRex.MatchString(content) {
+				if documentReferrerRex.MatchString(content) || indexOfRex.MatchString(content) || locationHrefRex.MatchString(content) {
 					dark_chain[Md5Str(pageUrl+content)] = CheckRes{
 						Url:   pageUrl,
 						Value: simplifyContent(content),
@@ -858,6 +865,52 @@ func (this *ChromeDpEngine) checkScriptHangingHorse(domainTop, url, location str
 
 	}
 	return
+}
+
+// 检查script内容是否有挂马特征
+func (this *ChromeDpEngine) checkScriptHangingHorse2(html []*Page, pageUrl, doMainTop string) (ok bool, hangingHorse map[string]CheckRes) {
+	hangingHorse = make(map[string]CheckRes, 0)
+	if len(html) > 0 {
+		for _, v := range html {
+			dom, err := goquery.NewDocumentFromReader(strings.NewReader(v.Html))
+			if err != nil {
+				return false, hangingHorse
+			}
+			//遍历所有script标签 ，通过特征 判断是否是暗链
+			dom.Find("script").Each(func(i int, selection *goquery.Selection) {
+				content := selection.Text()
+				srcUrl := ""
+				if url, ok := selection.Attr("src"); ok {
+					//fmt.Println("script src==", url)
+					url = strings.TrimPrefix(url, " ")
+					srcUrl = url
+				}
+
+				//fmt.Println("script=====", content)
+				//fmt.Println("srcUrl=====", srcUrl)
+				if locationRex.MatchString(content) && setTimeoutRex.MatchString(content) {
+					hangingHorse[Md5Str(pageUrl+content)] = CheckRes{
+						Url:   pageUrl,
+						Value: simplifyContent(content),
+					}
+				}
+				//通过是否备案来判断
+				if srcUrl != "" {
+					icp := NewIcpCheckSource()
+					icp.GetToken(getIcpTokenKey)
+					icp.Domain, _ = this.GetDomain(srcUrl)
+					if _, icpOk, err := icp.Posticp(true); err == nil && !icpOk {
+						hangingHorse[Md5Str(pageUrl+content)] = CheckRes{
+							Url:   pageUrl,
+							Value: simplifyContent(content),
+						}
+					}
+				}
+			})
+
+		}
+	}
+	return len(hangingHorse) > 0, hangingHorse
 }
 
 // 通过url地址 获取顶级域名和当前域名
