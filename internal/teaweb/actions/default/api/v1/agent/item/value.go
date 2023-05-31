@@ -89,7 +89,6 @@ func (this *ValueAction) RunGet(params struct {
 	source := item.Source()
 	this.Data["values"] = lists.Map(ones, func(k int, v interface{}) interface{} {
 		value := v.(*agents.Value)
-		fmt.Println(params.LastId, value.Id.Hex())
 
 		vars := []maps.Map{}
 		if types.IsMap(value.Value) || types.IsSlice(value.Value) {
