@@ -1,6 +1,8 @@
 package item
 
 import (
+	"errors"
+	"fmt"
 	"github.com/TeaWeb/build/internal/teaconfigs/agents"
 	"github.com/TeaWeb/build/internal/teaconfigs/notices"
 	"github.com/TeaWeb/build/internal/teadb"
@@ -11,6 +13,7 @@ import (
 	"github.com/iwind/TeaGo/types"
 	stringutil "github.com/iwind/TeaGo/utils/string"
 	timeutil "github.com/iwind/TeaGo/utils/time"
+	json "github.com/json-iterator/go"
 	"strings"
 	"time"
 )
@@ -27,6 +30,7 @@ func (this *ValueAction) RunGet(params struct {
 	StartTime int64
 	EndTime   int64
 }) {
+	teautils.SetCache("abc", "abc", time.Minute)
 	agent := agents.NewAgentConfigFromId(params.AgentId)
 	if agent == nil {
 		this.Fail("找不到Agent")
@@ -41,12 +45,47 @@ func (this *ValueAction) RunGet(params struct {
 	if item == nil {
 		this.Fail("找不到Item")
 	}
-
-	ones, err := teadb.AgentValueDAO().ListItemValuesByTime(params.AgentId, params.AppId, params.ItemId, params.Level, params.LastId, 0, 1, params.StartTime, params.EndTime)
-	if err != nil {
-		this.Fail("查询失败：" + err.Error())
+	var ones []*agents.Value
+	key := fmt.Sprint("%s-%s-%s", params.AgentId, params.AppId, params.ItemId)
+	var data interface{}
+	var err error
+	if teautils.RedisCliPing {
+		data, err = teautils.GetCache(key)
+	} else {
+		var ok bool
+		data, ok = teautils.CacheCli.Get(key)
+		if !ok {
+			err = errors.New("fail")
+		}
 	}
 
+	if err == nil {
+		dataByte, err := json.Marshal(data)
+		if err != nil {
+			this.Fail("查询失败：" + err.Error())
+		}
+		if err = json.Unmarshal(dataByte, &ones); err != nil {
+			this.Fail("查询失败：" + err.Error())
+		}
+	} else {
+		ones, err = teadb.AgentValueDAO().ListItemValuesByTime(params.AgentId, params.AppId, params.ItemId, params.Level, params.LastId, 0, 1, params.StartTime, params.EndTime)
+		if err != nil {
+			this.Fail("查询失败：" + err.Error())
+		}
+		if teautils.RedisCliPing {
+			teautils.SetCache(key, ones, time.Minute*30)
+		} else {
+			teautils.CacheCli.Set(key, ones, time.Minute*30)
+		}
+	}
+	if len(ones) == 0 {
+		this.Data["values"] = []interface{}{}
+		this.Success()
+	}
+	if params.LastId != "" && params.LastId == ones[0].Id.Hex() {
+		this.Data["values"] = []interface{}{}
+		this.Success()
+	}
 	source := item.Source()
 	this.Data["values"] = lists.Map(ones, func(k int, v interface{}) interface{} {
 		value := v.(*agents.Value)

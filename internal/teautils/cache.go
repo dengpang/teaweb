@@ -10,6 +10,14 @@ import (
 	"time"
 )
 
+var (
+	CacheCli = New(5*time.Minute, 10*time.Minute)
+)
+
+func init() {
+	CacheCli = New(5*time.Minute, 10*time.Minute)
+}
+
 type Item struct {
 	Object     interface{}
 	Expiration int64
