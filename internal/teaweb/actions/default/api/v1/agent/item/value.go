@@ -30,7 +30,6 @@ func (this *ValueAction) RunGet(params struct {
 	StartTime int64
 	EndTime   int64
 }) {
-	teautils.SetCache("abc", "abc", time.Minute)
 	agent := agents.NewAgentConfigFromId(params.AgentId)
 	if agent == nil {
 		this.Fail("找不到Agent")
@@ -68,14 +67,34 @@ func (this *ValueAction) RunGet(params struct {
 			this.Fail("查询失败：" + err.Error())
 		}
 	} else {
-		ones, err = teadb.AgentValueDAO().ListItemValuesByTime(params.AgentId, params.AppId, params.ItemId, params.Level, params.LastId, 0, 1, params.StartTime, params.EndTime)
+		queryKey := fmt.Sprintf("%s-%s-%s-%s-%s-%s-%s", params.AgentId, params.AppId, params.ItemId, params.Level, params.LastId, params.StartTime, params.EndTime)
+		fn := func() (interface{}, error) {
+			res, err := teadb.AgentValueDAO().ListItemValuesByTime(params.AgentId, params.AppId, params.ItemId, params.Level, params.LastId, 0, 1, params.StartTime, params.EndTime)
+			if err != nil {
+				return nil, err
+			}
+			return res, nil
+		}
+		ret, err := teautils.CheckCache(queryKey, fn, 60, true)
+		if err != nil {
+			this.Fail("查询失败：" + err.Error())
+
+		}
+		//ones, err = teadb.AgentValueDAO().ListItemValuesByTime(params.AgentId, params.AppId, params.ItemId, params.Level, params.LastId, 0, 1, params.StartTime, params.EndTime)
+		//if err != nil {
+		//	this.Fail("查询失败：" + err.Error())
+		//}
+		if teautils.RedisCliPing {
+			teautils.SetCache(key, ret, time.Minute*30)
+		} else {
+			teautils.CacheCli.Set(key, ret, time.Minute*30)
+		}
+		dataByte, err := json.Marshal(ret)
 		if err != nil {
 			this.Fail("查询失败：" + err.Error())
 		}
-		if teautils.RedisCliPing {
-			teautils.SetCache(key, ones, time.Minute*30)
-		} else {
-			teautils.CacheCli.Set(key, ones, time.Minute*30)
+		if err = json.Unmarshal(dataByte, &ones); err != nil {
+			this.Fail("查询失败：" + err.Error())
 		}
 	}
 	if len(ones) == 0 {
