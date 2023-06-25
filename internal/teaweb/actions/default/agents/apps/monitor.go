@@ -10,7 +10,7 @@ import (
 	"github.com/iwind/TeaGo/lists"
 	"github.com/iwind/TeaGo/logs"
 	"github.com/iwind/TeaGo/maps"
-	"github.com/iwind/TeaGo/utils/time"
+	timeutil "github.com/iwind/TeaGo/utils/time"
 	"strings"
 	"time"
 )
@@ -91,9 +91,13 @@ func (this *MonitorAction) RunPost(params struct {
 		end = int64(len(app.Items))
 	}
 	this.Data["page"] = page.AsHTML()
+	//start := time.Now() // 获取当前时间
+	//defer func() {
+	//	elapsed := time.Since(start)
+	//	fmt.Println("执行耗时 ----", elapsed)
+	//}()
 	this.Data["items"] = lists.Map(app.Items[page.Offset:end], func(k int, v interface{}) interface{} {
 		item := v.(*agents.Item)
-
 		latestValue := ""
 		latestTime := ""
 		latestLevel := notices.NoticeLevelNone

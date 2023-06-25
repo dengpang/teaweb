@@ -117,7 +117,7 @@ func (this *MongoDriver) FindOne(query *Query, modelPtr interface{}) (interface{
 		logs.PrintAsJSON(filter)
 	}
 
-	cursor, err := currentDB.Collection(query.table).Find(this.timeoutContext(5*time.Second), filter, opt)
+	cursor, err := currentDB.Collection(query.table).Find(this.timeoutContext(60*time.Second), filter, opt)
 	if err != nil {
 		if this.isNotFoundError(err) {
 			return nil, nil
@@ -195,7 +195,7 @@ func (this *MongoDriver) FindOnes(query *Query, modelPtr interface{}) ([]interfa
 		logs.PrintAsJSON(filter)
 	}
 
-	cursor, err := currentDB.Collection(query.table).Find(this.timeoutContext(5*time.Second), filter, opt)
+	cursor, err := currentDB.Collection(query.table).Find(this.timeoutContext(30*time.Second), filter, opt)
 	if err != nil {
 		if this.isNotFoundError(err) {
 			return nil, nil
@@ -237,7 +237,7 @@ func (this *MongoDriver) DeleteOnes(query *Query) error {
 		return err
 	}
 
-	_, err = this.DB().Collection(query.table).DeleteMany(this.timeoutContext(5*time.Second), filter)
+	_, err = this.DB().Collection(query.table).DeleteMany(this.timeoutContext(30*time.Second), filter)
 	return err
 }
 
@@ -251,7 +251,7 @@ func (this *MongoDriver) InsertOne(table string, modelPtr interface{}) error {
 	if modelPtr == nil {
 		return errors.New("insertOne: modelPtr should not be nil")
 	}
-	_, err := this.DB().Collection(table).InsertOne(this.timeoutContext(5*time.Second), modelPtr)
+	_, err := this.DB().Collection(table).InsertOne(this.timeoutContext(30*time.Second), modelPtr)
 	return err
 }
 
@@ -280,7 +280,7 @@ func (this *MongoDriver) InsertOnes(table string, modelPtrSlice interface{}) err
 		s = append(s, t.Index(i).Interface())
 	}
 
-	_, err := this.DB().Collection(table).InsertMany(this.timeoutContext(10*time.Second), s)
+	_, err := this.DB().Collection(table).InsertMany(this.timeoutContext(30*time.Second), s)
 	return err
 }
 
@@ -311,7 +311,7 @@ func (this *MongoDriver) Count(query *Query) (int64, error) {
 		return 0, err
 	}
 
-	return this.DB().Collection(query.table).CountDocuments(this.timeoutContext(10*time.Second), filter, opts)
+	return this.DB().Collection(query.table).CountDocuments(this.timeoutContext(30*time.Second), filter, opts)
 }
 
 func (this *MongoDriver) Sum(query *Query, field string) (float64, error) {
@@ -680,10 +680,10 @@ func (this *MongoDriver) connect() (*mongo.Client, error) {
 	if config.PoolSize > 0 {
 		opts.SetMaxPoolSize(uint64(config.PoolSize))
 	} else {
-		opts.SetMaxPoolSize(32)
+		opts.SetMaxPoolSize(100)
 	}
 	if config.Timeout > 0 {
-		opts.SetConnectTimeout(time.Duration(5) * time.Second)
+		opts.SetConnectTimeout(time.Duration(60) * time.Second)
 	} else {
 		opts.SetConnectTimeout(5 * time.Second)
 	}

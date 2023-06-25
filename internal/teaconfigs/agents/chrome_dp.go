@@ -499,10 +499,14 @@ func (this *ChromeDpEngine) GetUrlsAndCheck(html []*Page, doMainTop, doMain, pag
 							//暗链监测a标签
 							if checkType == 2 && this.checkUrlDarkChain(selection, url) {
 								//pageUrl页面地址  url=a标签的地址
-								dark_chain[Md5Str(pageUrl+url)] = CheckRes{
-									Url:   pageUrl,
-									Value: url,
+								_, url = this.GetDomain(url)
+								if !this.CheckccTLD(url) {
+									dark_chain[Md5Str(pageUrl+url)] = CheckRes{
+										Url:   pageUrl,
+										Value: url,
+									}
 								}
+
 							}
 						}
 					}
@@ -640,61 +644,59 @@ func (this *ChromeDpEngine) checkScriptDarkChain(html []*Page, pageUrl, doMainTo
 			}
 			//遍历所有script标签 ，通过特征 判断是否是暗链
 			dom.Find("script").Each(func(i int, selection *goquery.Selection) {
-				content := selection.Text()
+				//content := selection.Text()
 				srcUrl := ""
 				if url, ok := selection.Attr("src"); ok {
 					//fmt.Println("script src==", url)
 					url = strings.TrimPrefix(url, " ")
 					srcUrl = url
 				}
-				if documentReferrerRex.MatchString(content) || indexOfRex.MatchString(content) || locationHrefRex.MatchString(content) {
-					dark_chain[Md5Str(pageUrl+content)] = CheckRes{
-						Url:   pageUrl,
-						Value: simplifyContent(content),
-					}
-					//todo 暗链=url
-					//fmt.Println("document.referrer true")
-				}
-				if evalRex.MatchString(content) {
-					dark_chain[Md5Str(pageUrl+content)] = CheckRes{
-						Url:   pageUrl,
-						Value: simplifyContent(content),
-					}
-					//todo 暗链=url
-					//fmt.Println("eval true")
-				}
+				//if documentReferrerRex.MatchString(content) { //|| indexOfRex.MatchString(content) locationHrefRex.MatchString(content)
+				//	dark_chain[Md5Str(pageUrl+content)] = CheckRes{
+				//		Url:   pageUrl,
+				//		Value: simplifyContent(content),
+				//	}
+				//}
+
+				//if evalRex.MatchString(content) {
+				//	dark_chain[Md5Str(pageUrl+content)] = CheckRes{
+				//		Url:   pageUrl,
+				//		Value: simplifyContent(content),
+				//	}
+				//
+				//}
 				if srcUrl != "" && evalRex.MatchString(srcUrl) {
-					dark_chain[Md5Str(pageUrl+srcUrl)] = CheckRes{
+					_, url := this.GetDomain(srcUrl)
+					dark_chain[Md5Str(pageUrl+url)] = CheckRes{
 						Url:   pageUrl,
-						Value: srcUrl,
+						Value: url,
 					}
+
 				}
-				if unicodeRex.MatchString(content) {
-					dark_chain[Md5Str(pageUrl+content)] = CheckRes{
-						Url:   pageUrl,
-						Value: simplifyContent(content),
-					}
-					//todo 暗链=url
-					//fmt.Println("unicode true")
-				}
+				//if unicodeRex.MatchString(content) {
+				//	dark_chain[Md5Str(pageUrl+content)] = CheckRes{
+				//		Url:   pageUrl,
+				//		Value: simplifyContent(content),
+				//	}
+				//}
 				if srcUrl != "" && unicodeRex.MatchString(srcUrl) {
-					dark_chain[Md5Str(pageUrl+srcUrl)] = CheckRes{
+					_, url := this.GetDomain(srcUrl)
+					dark_chain[Md5Str(pageUrl+url)] = CheckRes{
 						Url:   pageUrl,
-						Value: srcUrl,
+						Value: url,
 					}
 				}
-				if baseRex.MatchString(content) {
-					dark_chain[Md5Str(pageUrl+content)] = CheckRes{
-						Url:   pageUrl,
-						Value: simplifyContent(content),
-					}
-					//todo 暗链=url
-					fmt.Println("bash true")
-				}
+				//if baseRex.MatchString(content) {
+				//	dark_chain[Md5Str(pageUrl+content)] = CheckRes{
+				//		Url:   pageUrl,
+				//		Value: simplifyContent(content),
+				//	}
+				//}
 				if srcUrl != "" && baseRex.MatchString(srcUrl) {
-					dark_chain[Md5Str(pageUrl+srcUrl)] = CheckRes{
+					_, url := this.GetDomain(srcUrl)
+					dark_chain[Md5Str(pageUrl+url)] = CheckRes{
 						Url:   pageUrl,
-						Value: srcUrl,
+						Value: url,
 					}
 				}
 			})
@@ -719,9 +721,10 @@ func (this *ChromeDpEngine) checkScriptDarkChain(html []*Page, pageUrl, doMainTo
 						heightNum, _ := strconv.Atoi(height)
 						if widthNum <= 10 && heightNum <= 10 { //宽高都小于10
 							//可疑暗链
-							dark_chain[Md5Str(pageUrl+aUrl)] = CheckRes{
+							_, url := this.GetDomain(aUrl)
+							dark_chain[Md5Str(pageUrl+url)] = CheckRes{
 								Url:   pageUrl,
-								Value: aUrl,
+								Value: url,
 							}
 						}
 					}
@@ -744,9 +747,10 @@ func (this *ChromeDpEngine) checkScriptDarkChain(html []*Page, pageUrl, doMainTo
 						inHttp := strings.Contains(aUrl, "http://") || strings.Contains(aUrl, "https://")
 						if inHttp && !this.checkUrlDomain(aUrl, doMainTop) { //地址不是当前域名
 							//可疑暗链
-							dark_chain[Md5Str(pageUrl+aUrl)] = CheckRes{
+							_, url := this.GetDomain(aUrl)
+							dark_chain[Md5Str(pageUrl+url)] = CheckRes{
 								Url:   pageUrl,
-								Value: aUrl,
+								Value: url,
 							}
 						}
 
@@ -836,11 +840,15 @@ func (this *ChromeDpEngine) checkIframeHangingHorse(html []*Page, pageUrl, doMai
 				}
 
 				//fmt.Println("none==", none)
-				if hangingOk {
-					hangingHorse[Md5Str(pageUrl+srcUrl)] = CheckRes{
-						Url:   pageUrl,
-						Value: srcUrl,
+				if hangingOk && srcUrl != "" {
+					_, url := this.GetDomain(srcUrl)
+					if !this.CheckccTLD(url) {
+						hangingHorse[Md5Str(pageUrl+url)] = CheckRes{
+							Url:   pageUrl,
+							Value: url,
+						}
 					}
+
 				}
 			})
 		}
@@ -854,14 +862,17 @@ func (this *ChromeDpEngine) checkScriptHangingHorse(domainTop, url, location str
 	hangingHorse = make(map[string]CheckRes, 0)
 
 	//响应地址的顶级域名和请求地址的顶级域名如果不同，可疑挂马
-	if top, _ := this.GetDomain(location); top != domainTop {
+	if top, lurl := this.GetDomain(location); top != domainTop {
+		if this.CheckccTLD(lurl) {
+			return
+		}
 		icp := NewIcpCheckSource()
 		icp.GetToken(getIcpTokenKey)
 		icp.Domain = top
 		if _, icpOk, err := icp.Posticp(true); err == nil && !icpOk {
-			hangingHorse[Md5Str(url+location)] = CheckRes{
+			hangingHorse[Md5Str(url+lurl)] = CheckRes{
 				Url:   url,
-				Value: location,
+				Value: lurl,
 			}
 		}
 
@@ -900,17 +911,17 @@ func (this *ChromeDpEngine) checkScriptHangingHorse2(html []*Page, pageUrl, doMa
 				if srcUrl != "" && (strings.Contains(srcUrl, "http://") || strings.Contains(srcUrl, "https://")) {
 					icp := NewIcpCheckSource()
 					icp.GetToken(getIcpTokenKey)
-					icp.Domain, _ = this.GetDomain(srcUrl)
-					if _, icpOk, err := icp.Posticp(true); err == nil && !icpOk {
-						//fmt.Println(srcUrl)
-						//fmt.Println(icp.Domain)
-						//fmt.Println(pageUrl)
-						//fmt.Println(content)
-						hangingHorse[Md5Str(pageUrl+content)] = CheckRes{
-							Url:   pageUrl,
-							Value: simplifyContent(content),
+					var url string
+					icp.Domain, url = this.GetDomain(srcUrl)
+					if !this.CheckccTLD(url) {
+						if _, icpOk, err := icp.Posticp(true); err == nil && !icpOk {
+							hangingHorse[Md5Str(pageUrl+url)] = CheckRes{
+								Url:   pageUrl,
+								Value: simplifyContent(url),
+							}
 						}
 					}
+
 				}
 			})
 
@@ -948,6 +959,21 @@ func (this *ChromeDpEngine) GetDomain(url string) (domainTop, domain string) {
 	}
 	domainTop = strings.Join(s[len(s)-interceptLen:], ".")
 	return strings.Split(domainTop, ":")[0], strings.Split(resoureUrl, domainTop)[0] + domainTop
+}
+
+// 备案查询跳过特色域名
+func (this *ChromeDpEngine) CheckccTLD(url string) bool {
+	var compoundSuffix = []string{
+		".org.cn", ".gov.cn", ".edu.cn",
+	}
+	for _, v := range compoundSuffix {
+		ok := strings.Contains(url, v)
+		if ok {
+			return true
+		}
+
+	}
+	return false
 }
 
 /*

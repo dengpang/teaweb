@@ -147,6 +147,7 @@ func (this *IcpCheckSource) Posticp(needCache bool) (value interface{}, ok bool,
 		"unitName": "",
 		"ok":       false,
 	}
+	//return value, false, nil
 	icpCache := IcpCache{}
 	//fmt.Println(this.Domain)
 	icpValue, ok := Cache.Get(this.Domain)

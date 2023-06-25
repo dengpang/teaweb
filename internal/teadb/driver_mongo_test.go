@@ -2,9 +2,13 @@ package teadb
 
 import (
 	"github.com/TeaWeb/build/internal/teatesting"
+	"github.com/go-resty/resty/v2"
 	"github.com/iwind/TeaGo/logs"
 	"github.com/iwind/TeaGo/maps"
+	"strconv"
+	"sync"
 	"testing"
+	"time"
 )
 
 func TestMongoDriver_buildFilter(t *testing.T) {
@@ -99,4 +103,30 @@ func TestMongoDriver_ListTables(t *testing.T) {
 		return
 	}
 	t.Log(names)
+}
+
+func Test_Push(t *testing.T) {
+	wg := &sync.WaitGroup{}
+
+	for i := 0; i < 1000; i++ {
+		wg.Add(1)
+
+		go func(i int) {
+			cli := resty.New().SetDebug(true).SetTimeout(time.Second * 600).SetHeaders(map[string]string{
+				"User-Agent":        "TeaWeb Agent",
+				"Tea-Agent-Id":      "b20081671825bee6",
+				"Tea-Agent-Key":     "37daec6ae3176f7de5dc84583496c871",
+				"Tea-Agent-Version": "1.5.0",
+				"Tea-Agent-Os":      "macOs",
+				"Tea-Agent-Arch":    "macOs",
+			}).R()
+			s := strconv.Itoa(i)
+			cli.SetBody(`{"event":"ItemEvent","agentId":"b20081671825bee6","appId":"system","itemId":"b137570ed9d96a64","value":{"status":` + s + `},"error":"Get \"https://zq.zj96596.com:689/netbank/login.html\": tls: server selected unsupported protocol version 302","beginAt":1686710335,"timestamp":1686710335,"costMs":187.999852}`).Post("http://127.0.0.1:7777/api/agent/push")
+			wg.Done()
+		}(i)
+
+	}
+	wg.Wait()
+	//res, err :=
+	//fmt.Println(res, err)
 }

@@ -65,8 +65,8 @@ func (this *MongoAgentValueDAO) ClearItemValues(agentId string, appId string, it
 func (this *MongoAgentValueDAO) FindLatestItemValue(agentId string, appId string, itemId string) (*agents.Value, error) {
 	query := NewQuery(this.TableName(agentId)).
 		Attr("itemId", itemId).
-		Node().
-		Desc("createdAt")
+		//Node().
+		Desc("createdAt").Debug()
 	if len(appId) > 0 {
 		query.Attr("appId", appId)
 	}
@@ -84,7 +84,7 @@ func (this *MongoAgentValueDAO) FindLatestItemValueNoError(agentId string, appId
 	query := NewQuery(this.TableName(agentId)).
 		Attr("itemId", itemId).
 		Attr("error", "").
-		Node().
+		//Node().
 		Desc("createdAt")
 	if len(appId) > 0 {
 		query.Attr("appId", appId)
@@ -108,7 +108,7 @@ func (this *MongoAgentValueDAO) FindLatestItemValues(agentId string, appId strin
 	if len(itemId) > 0 {
 		query.Attr("itemId", itemId)
 	}
-	query.Node()
+	//query.Node()
 	query.Limit(size)
 	query.Desc("createdAt")
 
@@ -147,7 +147,7 @@ func (this *MongoAgentValueDAO) ListItemValues(agentId string, appId string, ite
 	if len(itemId) > 0 {
 		query.Attr("itemId", itemId)
 	}
-	query.Node()
+	//query.Node()
 	query.Offset(offset)
 	query.Limit(size)
 	query.Desc("createdAt")
@@ -193,7 +193,7 @@ func (this *MongoAgentValueDAO) ListItemValuesByTime(agentId string, appId strin
 	if entTime > 0 {
 		query.Lte("createdAt", entTime)
 	}
-	query.Node()
+	//query.Node()
 	query.Offset(offset)
 	query.Limit(size)
 	query.Desc("createdAt")

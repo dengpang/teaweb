@@ -8,6 +8,7 @@ import (
 	"github.com/chromedp/chromedp"
 	"log"
 	"regexp"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -19,7 +20,7 @@ func Test_run(t *testing.T) {
 	url := "http://www.iyunke.net/"
 	var ctxs chan context.Context
 	for true {
-		if before.Add(2*time.Hour).Unix() <= time.Now().Unix() {
+		if before.Add(12*time.Hour).Unix() <= time.Now().Unix() {
 			break
 		}
 		//任务并发执行的时候 一定会出现获取窗口达到上限，这里使用两小时内重复获取
@@ -171,7 +172,7 @@ javascript:document.write(\"<script src=http://www.djmp4.net/muma.js></script>\"
 }
 func Test_getDomain(t *testing.T) {
 	en := &ChromeDpEngine{}
-	url := "https://www.cqwuxi.com/thread-1031441-1-1.html"
+	url := "h"
 	fmt.Println(en.GetDomain(url))
 	fmt.Println(en.GetUrl("//v.qq.com/txp/iframe/player.html?vid=m3366k2fvlr", "https://www.cqwuxi.com", "https://www.cqwuxi.com/thread-1031441-1-1.html"))
 }
@@ -280,4 +281,8 @@ func Test_re1(t *testing.T) {
 	locationHrefRex, _ = regexp.Compile(`(window\.l|l|self\.l|this\.l)ocation\s{0,}=`) //特殊关键词
 	res := locationHrefRex.MatchString("function wContent() {\n  var hm = document.createElement(\"script\");\n  hm.innerHTML = 'var weburl = url[Math.floor(Math.random()*url.length)]+\"/register?id=\"+rid; setTimeout(function () {window.location = weburl;},timesleep);';\n  var s = document.getElementsByTagName(\"script\")[0]; \n  document.body.appendChild(hm);\n};\n")
 	fmt.Println(res)
+}
+func Test_split(t *testing.T) {
+	s := strings.Split("http://static.bshare.cn/cm.html?cid=2023061415175100037612700194952254&m=8,11,12,13,14,17,16,19,18,21,20,23,25,24,27,26", "sss")
+	fmt.Println(s[0])
 }
